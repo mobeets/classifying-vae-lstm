@@ -11,13 +11,13 @@ Samples from the models for the JSB Chorales and Piano-midi corpuses, for songs 
 
 __JSB Chorales (all keys)__:
 
-- VAE <audio src="data/samples/JSB10_VAE.wav" controls preload></audio>
-- VAE+LSTM <audio src="data/samples/JSB10_VRNN.wav" controls preload></audio>
-- Classifying VAE (inferred key) <audio src="data/samples/JSB10_CL-VAE_infer.wav" controls preload></audio>
-- Classifying VAE+LSTM (inferred key) <audio src="data/samples/JSB10_CL-VRNN_infer.wav" controls preload></audio>
+- VAE <br><audio src="data/samples/JSB10_VAE.wav" controls preload></audio>
+- VAE+LSTM <br><audio src="data/samples/JSB10_VRNN.wav" controls preload></audio>
+- Classifying VAE (inferred key) <br><audio src="data/samples/JSB10_CL-VAE_infer.wav" controls preload></audio>
+- Classifying VAE+LSTM (inferred key) <br><audio src="data/samples/JSB10_CL-VRNN_infer.wav" controls preload></audio>
 
 __Piano-midi (all keys)__:
 
-- VAE <audio src="data/samples/PMall_VAE.wav" controls preload></audio>
-- Classifying VAE (inferred key) <audio src="data/samples/PMall_CL-VAE_infer.wav" controls preload></audio>
-- Classifying VAE (given key) <audio src="data/samples/PMall_CL-VAE_true.wav" controls preload></audio>
+- VAE <br><audio src="data/samples/PMall_VAE.wav" controls preload></audio>
+- Classifying VAE (inferred key) <br><audio src="data/samples/PMall_CL-VAE_infer.wav" controls preload></audio>
+- Classifying VAE (given key) <br><audio src="data/samples/PMall_CL-VAE_true.wav" controls preload></audio>
