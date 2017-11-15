@@ -6,3 +6,9 @@ These models extend the standard VAE and VAE+LSTM to the case where there is a l
 Training data for the JSB Chorales and Piano-midi corpuses can be found in `data/input`. Songs have been transposed into C major or C minor (`*_Cs.pickle`), for comparison to previous work, or kept in their original keys (`*_all.pickle`).
 
 Samples from the models for the JSB Chorales and Piano-midi corpuses, for songs in their original keys, can be found in `data/samples`.
+
+ <audio controls="controls">
+   <source src="data/samples/PMall_Data.wav" type="audio/mpeg">
+   Your browser does not support the audio element.
+ </audio>
+ 
