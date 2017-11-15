@@ -7,8 +7,4 @@ Training data for the JSB Chorales and Piano-midi corpuses can be found in `data
 
 Samples from the models for the JSB Chorales and Piano-midi corpuses, for songs in their original keys, can be found in `data/samples`.
 
- <audio controls="controls">
-   <source src="data/samples/PMall_Data.wav" type="audio/mpeg">
-   Your browser does not support the audio element.
- </audio>
- 
+<audio src="data/samples/PMall_Data.wav" controls preload></audio>
