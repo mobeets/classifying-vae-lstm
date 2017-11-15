@@ -12,8 +12,8 @@ Samples from the models for the JSB Chorales and Piano-midi corpuses, for songs 
 __JSB Chorales (all keys)__:
 
 - VAE <br><audio src="data/samples/JSB10_VAE.wav" controls preload></audio>
-- VAE+LSTM <br><audio src="data/samples/JSB10_VRNN.wav" controls preload></audio>
 - Classifying VAE (inferred key) <br><audio src="data/samples/JSB10_CL-VAE_infer.wav" controls preload></audio>
+- VAE+LSTM <br><audio src="data/samples/JSB10_VRNN.wav" controls preload></audio>
 - Classifying VAE+LSTM (inferred key) <br><audio src="data/samples/JSB10_CL-VRNN_infer.wav" controls preload></audio>
 
 __Piano-midi (all keys)__:
