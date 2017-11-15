@@ -1,0 +1,4 @@
+Keras==2.0.0
+tensorflow==1.0.1
+music21==3.1.0
+progress==1.3
