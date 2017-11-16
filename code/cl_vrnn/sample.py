@@ -20,7 +20,7 @@ def gen_samples(P, dec_model, w_enc_model, z_enc_model, args, margs):
         cur_key_ind = P.test_song_keys[i]
         w_val = None if args.infer_w else to_categorical(cur_key_ind, margs['n_classes'])
         x_seed = P.x_test[i]
-        sample = generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, args.t, margs['use_x_prev'], w_val=w_val, w_discrete=args.discrete_w)
+        sample = generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, args.t, margs['use_x_prev'], w_val=w_val, w_discrete=args.discrete_w, seq_length=margs['seq_length'])
         
         write_sample(sample, args.sample_dir, outfile(j,i),
             'jsb' in args.train_file.lower())
