@@ -4,6 +4,26 @@ Code to load pianoroll data (.pickle)
 import numpy as np
 import cPickle
 
+rel_keys = {'a': 'C',
+    'b-': 'D-',
+    'b': 'D',
+    'c': 'E-',
+    'c#': 'E',
+    'd-': 'F-',
+    'd': 'F',
+    'd#': 'F#',
+    'e-': 'G-',
+    'e': 'G',
+    'f': 'A-',
+    'f#': 'A',
+    'g': 'B-',
+    'g#': 'B',
+    'a-': 'C-',
+}
+
+def relative_major(k):
+    return k if k.isupper() else rel_keys[k]
+
 def pianoroll_to_song(roll, offset=21):
     f = lambda x: (np.where(x)[0]+offset).tolist()
     return [f(s) for s in roll]
@@ -138,5 +158,6 @@ class PianoData:
         return items[:-mod] if mod > 0 else items
 
 if __name__ == '__main__':
-    train_file = '../data/input/Piano-midi_all.pickle'
+    # train_file = '../data/input/Piano-midi_all.pickle'
+    train_file = '../data/input/JSB Chorales_all.pickle'
     P = PianoData(train_file, seq_length=1, step_length=1)
