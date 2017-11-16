@@ -22,3 +22,14 @@ __Piano-midi (all keys)__:
 - VAE <br><audio src="data/samples/PMall_VAE.wav" controls preload></audio>
 - Classifying VAE (inferred key) <br><audio src="data/samples/PMall_CL-VAE_infer.wav" controls preload></audio>
 - Classifying VAE (given key) <br><audio src="data/samples/PMall_CL-VAE_true.wav" controls preload></audio>
+
+### Training new models
+
+Example of training a Classifying VAE with 4 latent dimensions on JSB Chorales in two keys, and then generating a sample from this model:
+
+```bash
+$ python cl_vae/train.py run1 --use_x_prev --latent_dim 4 --train_file '../data/input/JSB Chorales_Cs.pickle'
+$ python cl_vae/sample.py outfile --model_file ../data/models/run1.h5 --train_file '../data/input/JSB Chorales_Cs.pickle'
+```
+
+
