@@ -1,14 +1,8 @@
 """
 Code to load pianoroll data (.pickle)
-data source: http://www-etud.iro.umontreal.ca/~boulanni/icml2012
 """
 import numpy as np
 import cPickle
-from preprocess import relative_major, analyze_key, key_strength
-
-def assess_key_strength(sample, keyGoal):
-    counts = np.roll(np.reshape(np.hstack([sample.sum(axis=0), np.zeros((8,))]), (8,12)).sum(axis=0), -3)
-    return key_strength(counts, keyGoal)
 
 def pianoroll_to_song(roll, offset=21):
     f = lambda x: (np.where(x)[0]+offset).tolist()
@@ -142,59 +136,6 @@ class PianoData:
             return items
         mod = (items.shape[0] % self.batch_size)
         return items[:-mod] if mod > 0 else items
-
-def reanalyze_key(P):
-    """
-    if we were to analyze the key of each data point, how consistent would it be with the key of the entire song? this suggests an upper-bound for how well we will be able to classify key with this data
-    """
-    from progress.bar import Bar
-    invkey = {v:k for k,v in P.key_map.iteritems()}
-    D = {}
-    for ky in ['x_train', 'x_valid', 'x_test']:
-        keys = []
-        scs = []
-        new_keys = []
-        rolls = getattr(P, ky)
-        inds = np.arange(len(rolls))
-        bar = Bar('Processing', max=len(inds))
-        # np.random.shuffle(inds)
-        for i in inds:
-            song = pianoroll_to_song(rolls[i])
-            k = analyze_key(song).tonicPitchNameWithCase
-            new_keys.append(k)
-            bar.next()
-            continue
-            k0 = getattr(P, ky[2:] + '_song_keys')[i]
-            keys.append((k0, P.key_map.get(k, 'NONE')))
-            sc = key_strength(song, invkey[k0])
-            scs.append(sc)
-            if i % 50 == 0:
-                # mean accuracy, score with original key
-                print (np.array(keys)[:,0] == np.array(keys)[:,1]).mean(), np.array(scs).mean()
-        D[ky] = rolls
-        D[ky + '_keys'] = np.array(new_keys)
-        bar.finish()
-    return D
-
-def load_npz_to_update_keys(infile, P, use_rel_major=True):
-    D = np.load(infile)
-    all_keys = []
-    E = {}
-    for ky in D:
-        maxind = getattr(P, ky.replace('_keys', '')).shape[0]
-        if not ky.endswith('_keys'):
-            assert((D[ky][:maxind] == getattr(P, ky)).all())
-            continue
-        E[ky] = D[ky][:maxind]
-        if use_rel_major:
-            E[ky] = [relative_major(k) for k in E[ky]]
-        all_keys.append(E[ky])
-    all_keys = np.unique(np.hstack(all_keys))
-    P.key_map = dict(zip(all_keys, xrange(len(all_keys))))
-    for ky in E:
-        keys = np.array([P.key_map[k] for k in E[ky]])
-        setattr(P, ky.split('_')[1] + '_song_keys', keys)
-    return P    
 
 if __name__ == '__main__':
     train_file = '../data/input/Piano-midi_all.pickle'
