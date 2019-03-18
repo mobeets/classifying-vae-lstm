@@ -4,7 +4,7 @@ import numpy as np
 from keras import losses
 from keras import backend as K
 from keras.callbacks import TensorBoard, ModelCheckpoint, EarlyStopping, Callback
-from .utils.weightnorm import AdamWithWeightnorm, data_based_init
+from utils.weightnorm import AdamWithWeightnorm, data_based_init
 
 bincrossentropy = lambda x, xhat: (x*np.log(np.maximum(1e-15, xhat)) + (1-x)*np.log(np.maximum(1e-15, 1-xhat)))
 
