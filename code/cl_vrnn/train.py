@@ -24,19 +24,20 @@ def train(args):
     w = to_categorical(P.train_song_keys, args.n_classes)
     wv = to_categorical(P.valid_song_keys, args.n_classes)
 
-    print "Training with {} classes.".format(args.n_classes)
-    assert not (args.predict_next and args.use_x_prev), "Can't use --predict_next if using --use_x_prev"
+    print("Training with {} classes.".format(args.n_classes))
+    assert(not (args.predict_next and args.use_x_prev)), \
+                "Can't use --predict_next if using --use_x_prev"
 
     callbacks = get_callbacks(args, patience=args.patience, 
         min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
     if args.kl_anneal > 0:
-        assert args.kl_anneal <= args.num_epochs, "invalid kl_anneal"
+        assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
         kl_weight = K.variable(value=0.1)
         callbacks += [AnnealLossWeight(kl_weight, name="kl_weight", final_value=1.0, n_epochs=args.kl_anneal)]
     else:
         kl_weight = 1.0
     if args.w_kl_anneal > 0:
-        assert args.w_kl_anneal <= args.num_epochs, "invalid w_kl_anneal"
+        assert(args.w_kl_anneal <= args.num_epochs), "invalid w_kl_anneal"
         w_kl_weight = K.variable(value=0.0)
         callbacks += [AnnealLossWeight(w_kl_weight, name="w_kl_weight", final_value=1.0, n_epochs=args.w_kl_anneal)]
     else:
@@ -47,7 +48,7 @@ def train(args):
     args.optimizer = 'adam-wn' if was_adam_wn else args.optimizer
     save_model_in_pieces(model, args)
 
-    print (P.x_train.shape, P.y_train.shape)
+    print((P.x_train.shape, P.y_train.shape))
     if args.use_x_prev:
         x,y = [P.y_train, P.x_train], P.y_train
         xv,yv = [P.y_valid, P.x_valid], P.y_valid

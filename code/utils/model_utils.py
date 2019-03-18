@@ -47,7 +47,7 @@ class AnnealLossWeight(Callback):
         else:
             next_val = self.start_value + self.next_weight(1.0*epoch/self.n_epochs)*(self.final_value - self.start_value)
         K.set_value(self.beta, next_val)
-        print "+++++ {}: {}".format(self.name, K.eval(self.beta))
+        print("+++++ {}: {}".format(self.name, K.eval(self.beta)))
 
 def init_adam_wn(optimizer):
     if optimizer == 'adam-wn':
@@ -67,7 +67,7 @@ class EarlyStoppingAfterEpoch(Callback):
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
-        assert mode in ['auto', 'min', 'max']
+        assert(mode in ['auto', 'min', 'max'])
 
         if mode == 'min':
             self.monitor_op = np.less
@@ -106,8 +106,8 @@ class EarlyStoppingAfterEpoch(Callback):
 class ModelCheckpointAfterEpoch(Callback):
     def __init__(self, filepath, monitor, min_epoch=0, save_weights_only=True, save_best_only=True, mode='auto', verbose=False):
         super(ModelCheckpointAfterEpoch, self).__init__()
-        assert save_best_only and not verbose
-        assert mode in ['auto', 'min', 'max']
+        assert(save_best_only and not verbose)
+        assert(mode in ['auto', 'min', 'max'])
         self.filepath = filepath
         self.monitor = monitor
         self.min_epoch = min_epoch

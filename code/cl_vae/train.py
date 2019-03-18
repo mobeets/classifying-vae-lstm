@@ -34,17 +34,18 @@ def train(args):
     wva = to_categorical(P.valid_song_keys, args.n_classes)
     wte = to_categorical(P.test_song_keys, args.n_classes)
 
-    assert not (args.predict_next and args.use_x_prev), "Can't use --predict_next if using --use_x_prev"
+    assert(not (args.predict_next and args.use_x_prev)), \
+            "Can't use --predict_next if using --use_x_prev"
     callbacks = get_callbacks(args, patience=args.patience, 
         min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
     if args.kl_anneal > 0:
-        assert args.kl_anneal <= args.num_epochs, "invalid kl_anneal"
+        assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
         kl_weight = K.variable(value=0.1)
         callbacks += [AnnealLossWeight(kl_weight, name="kl_weight", final_value=1.0, n_epochs=args.kl_anneal)]
     else:
         kl_weight = 1.0
     if args.w_kl_anneal > 0:
-        assert args.w_kl_anneal <= args.num_epochs, "invalid w_kl_anneal"
+        assert(args.w_kl_anneal <= args.num_epochs), "invalid w_kl_anneal"
         w_kl_weight = K.variable(value=0.0)
         callbacks += [AnnealLossWeight(w_kl_weight, name="w_kl_weight", final_value=1.0, n_epochs=args.w_kl_anneal)]
     else:

@@ -36,10 +36,10 @@ def song_to_pianoroll(song, offset=21):
     all_notes = [y for x in song for y in x]
     if min(all_notes)-offset < 0:
         offset -= 12
-        # assert False
+        # assert(False)
     if max(all_notes)-offset > 87:
         offset += 12
-        # assert False
+        # assert(False)
     for notes in song:
         roll = np.zeros(88)
         roll[[n-offset for n in notes]] = 1.

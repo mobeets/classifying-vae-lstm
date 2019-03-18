@@ -27,9 +27,9 @@ class MidiWriter(object):
         time_step=120, resolution=480, metronome=24, offset=21,
         format='final'):
         if self.verbose:
-            print "Dumping sequence to MIDI file: {}".format(output_filename)
-            print "Resolution: {}".format(resolution)
-            print "Time Step: {}".format(time_step)
+            print("Dumping sequence to MIDI file: {}".format(output_filename))
+            print("Resolution: {}".format(resolution))
+            print("Time Step: {}".format(time_step))
 
         pattern = midi.Pattern(resolution=resolution)
         self.track = midi.Track()
@@ -57,7 +57,7 @@ class MidiWriter(object):
 
         time_steps = sequence.shape[0]
         if self.verbose:
-            print "Total number of time steps: {}".format(time_steps)
+            print("Total number of time steps: {}".format(time_steps))
 
         tick = time_step
         self.notes_on = { n: False for n in range(self.note_range) }
