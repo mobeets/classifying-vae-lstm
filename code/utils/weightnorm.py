@@ -114,10 +114,14 @@ class AdamWithWeightnorm(Adam):
         else: # Keras version >= 2.0.8
             attributes = ['loss', 'params']
 
+        print(kwargs)
         for key,val in kwargs.items():
+            print(key,val)
             exec("{} = val".format(key), locals(), locals())
 
+        print(args, attributes)
         for arg, attname in zip(args, attributes):
+            print(arg, attname)
             exec('{} = arg'.format(attname), locals(), locals())
 
         grads = self.get_gradients(loss, params)
