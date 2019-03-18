@@ -2,7 +2,7 @@
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
-import cPickle
+import _pickle as cPickle
 
 rel_keys = {'a': 'C',
     'b-': 'D-',
