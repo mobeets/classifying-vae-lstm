@@ -4,13 +4,18 @@ import tensorflow as tf
 
 # adapted from keras.optimizers.SGD
 class SGDWithWeightnorm(SGD):
-    def get_updates(self, params, constraints, loss):
+    def get_updates(self, *args):
+        try: # Keras version < 2.0.8
+            params, constraints, loss = args
+        except: # Keras version >= 2.0.8
+            loss, params = args
+        
         grads = self.get_gradients(loss, params)
         self.updates = []
 
         lr = self.lr
         if self.initial_decay > 0:
-            lr *= (1. / (1. + self.decay * self.iterations))
+            lr *= (1. / (1. + self.decay * self.iterations)) # ? ** 0.75
             self.updates .append(K.update_add(self.iterations, 1))
 
         # momentum
@@ -47,9 +52,13 @@ class SGDWithWeightnorm(SGD):
                     new_V_param = V + v_v
 
                 # if there are constraints we apply them to V, not W
-                if p in constraints:
-                    c = constraints[p]
-                    new_V_param = c(new_V_param)
+                try: # Keras version < 2.0.8
+                    if p in constraints:
+                        c = constraints[p]
+                        new_V_param = c(new_V_param)
+                except: # Keras version >= 2.0.8
+                    if getattr(p, 'constraint', None) is not None:
+                        new_V_param = p.constraint(new_V_param)
 
                 # wn param updates --> W updates
                 add_weightnorm_param_updates(self.updates, new_V_param, new_g_param, p, V_scaler)
@@ -64,9 +73,13 @@ class SGDWithWeightnorm(SGD):
                     new_p = p + v
 
                 # apply constraints
-                if p in constraints:
-                    c = constraints[p]
-                    new_p = c(new_p)
+                try: # Keras version < 2.0.8
+                    if p in constraints:
+                        c = constraints[p]
+                        new_p = c(new_p)
+                except: # Keras version > 2.0.8
+                    if getattr(p, 'constraint', None) is not None:
+                        new_p = p.constraint(new_p)
 
                 self.updates.append(K.update(p, new_p))
         return self.updates
@@ -119,9 +132,13 @@ class AdamWithWeightnorm(Adam):
                 self.updates.append(K.update(v, v_t))
 
                 # if there are constraints we apply them to V, not W
-                if p in constraints:
-                    c = constraints[p]
-                    new_V_param = c(new_V_param)
+                try: # Keras version < 2.0.8
+                    if p in constraints:
+                        c = constraints[p]
+                        new_V_param = c(new_V_param)
+                except:
+                    if getattr(p, 'constraint', None) is not None:
+                        new_V_param = p.constraint(new_V_param)
 
                 # wn param updates --> W updates
                 add_weightnorm_param_updates(self.updates, new_V_param, new_g_param, p, V_scaler)
@@ -136,9 +153,14 @@ class AdamWithWeightnorm(Adam):
 
                 new_p = p_t
                 # apply constraints
-                if p in constraints:
-                    c = constraints[p]
-                    new_p = c(new_p)
+                try: # Keras version < 2.0.8
+                    if p in constraints:
+                        c = constraints[p]
+                        new_p = c(new_p)
+                except:
+                    if getattr(p, 'constraint', None) is not None:
+                        new_p = p.constraint(new_p)
+
                 self.updates.append(K.update(p, new_p))
         return self.updates
 
