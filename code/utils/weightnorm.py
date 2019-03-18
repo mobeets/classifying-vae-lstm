@@ -1,13 +1,15 @@
 from keras import __version__ as KERAS_VERSION
 from keras import backend as K
 from keras.optimizers import SGD,Adam
+from numpy import int32
+
 import tensorflow as tf
 
 # adapted from keras.optimizers.SGD
 class SGDWithWeightnorm(SGD):
     def get_updates(self, *args, **kwargs):
         
-        vmajor, vminor, vsmall = np.int32(KERAS_VERSION.split('.'))
+        vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
         assert(major >= 2), "Must use at least `keras` version 2.0.0."
         
@@ -100,7 +102,7 @@ class SGDWithWeightnorm(SGD):
 # adapted from keras.optimizers.Adam
 class AdamWithWeightnorm(Adam):
     def get_updates(self, *args, **kwargs):
-        vmajor, vminor, vsmall = np.int32(KERAS_VERSION.split('.'))
+        vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
         assert(major >= 2), "Must use at least `keras` version 2.0.0."
         
@@ -112,7 +114,7 @@ class AdamWithWeightnorm(Adam):
 
         for key,val in kwargs.items():
             exec("{} = val".format(key), locals(), locals())
-        
+
         for arg, attname in zip(args, attributes):
             exec('{} = arg'.format(attname), locals(), locals())
 
