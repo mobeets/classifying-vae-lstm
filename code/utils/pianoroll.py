@@ -2,7 +2,13 @@
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
-import _pickle as cPickle
+
+try:
+    # Python 3
+    import _pickle as cPickle
+else:
+    # Python 2
+    import cPickle
 
 rel_keys = {'a': 'C',
     'b-': 'D-',
@@ -77,7 +83,15 @@ class PianoData:
 
         specifying batch_size will ensure that that mod(n, batch_size) == 0
         """
-        D = cPickle.load(open(train_file))        
+        try:
+            # Python 3
+            with open(train_file,'rb') as pickle_file: 
+                D = _pickle.load(pickle_file)
+        except:
+            # Python 2
+            with open(train_file) as pickle_file: 
+                D = cPickle.load(pickle_file)
+
         self.train_file = train_file # .pickle source file
         self.batch_size = batch_size # ensures that nsamples is divisible by this
         self.seq_length = seq_length # returns [n x seq_length x 88]
