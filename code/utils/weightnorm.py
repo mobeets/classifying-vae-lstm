@@ -19,14 +19,17 @@ class SGDWithWeightnorm(SGD):
         else: # Keras version >= 2.0.8
             attributes = ['loss', 'params']
 
+        print(kwargs)
+        ldict = {}
         for key,val in kwargs.items():
-            print(key,val)
-            exec("{} = val".format(key), locals(), locals())
-
+            ldict.update(locals())
+            exec(key + ' = val', globals(),ldict)
+        
+        print(args, attributes)
         for arg, attname in zip(args, attributes):
             print(arg, attname)
-            exec('{} = arg'.format(attname), locals(), locals())
-
+            exec('{} = arg'.format(attname), globals(), locals())
+        
         grads = self.get_gradients(loss, params)
         self.updates = []
 
@@ -115,14 +118,15 @@ class AdamWithWeightnorm(Adam):
             attributes = ['loss', 'params']
 
         print(kwargs)
+        ldict = {}
         for key,val in kwargs.items():
-            print(key,val)
-            exec("{} = val".format(key), locals(), locals())
+            ldict.update(locals())
+            exec(key + ' = val', globals(),ldict)
 
         print(args, attributes)
         for arg, attname in zip(args, attributes):
             print(arg, attname)
-            exec('{} = arg'.format(attname), locals(), locals())
+            exec('{} = arg'.format(attname), globals(), locals())
 
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
