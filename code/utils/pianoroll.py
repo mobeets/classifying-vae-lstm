@@ -6,7 +6,7 @@ import numpy as np
 try:
     # Python 3
     import _pickle as cPickle
-else:
+except:
     # Python 2
     import cPickle
 
