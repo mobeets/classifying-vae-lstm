@@ -4,7 +4,8 @@ import tensorflow as tf
 
 # adapted from keras.optimizers.SGD
 class SGDWithWeightnorm(SGD):
-    def get_updates(self, *args):
+    def get_updates(self, *args, **kwargs):
+        print(kwargs)
         try: # Keras version < 2.0.8
             params, constraints, loss = args
         except: # Keras version >= 2.0.8
@@ -86,7 +87,8 @@ class SGDWithWeightnorm(SGD):
 
 # adapted from keras.optimizers.Adam
 class AdamWithWeightnorm(Adam):
-    def get_updates(self, *args):
+    def get_updates(self, *args, **kwargs):
+        print(kwargs)
         try: # Keras version < 2.0.8
             params, constraints, loss = args
         except: # Keras version >= 2.0.8
