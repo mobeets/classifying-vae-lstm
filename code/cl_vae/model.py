@@ -84,7 +84,10 @@ def make_w_encoder(model, original_dim, batch_size=1):
     mdl = Model(x, [w_mean, w_log_var])
     return mdl
 
-def make_z_encoder(model, original_dim, class_dim, (latent_dim_0, latent_dim), batch_size=1):
+def make_z_encoder(model, original_dim, class_dim, latent_dims, batch_size=1):
+    
+    latent_dim_0, latent_dim = latent_dims
+
     x = Input(batch_shape=(batch_size, original_dim), name='x')
     w = Input(batch_shape=(batch_size, class_dim), name='w')
     xw = concatenate([x, w], axis=-1)
@@ -101,7 +104,10 @@ def make_z_encoder(model, original_dim, class_dim, (latent_dim_0, latent_dim), b
     mdl = Model([x, w], [z_mean, z_log_var])
     return mdl
 
-def make_decoder(model, (latent_dim_0, latent_dim), class_dim, original_dim=88, use_x_prev=False, batch_size=1):
+def make_decoder(model, latent_dims, class_dim, original_dim=88, use_x_prev=False, batch_size=1):
+
+    latent_dim_0, latent_dim = latent_dims
+
     w = Input(batch_shape=(batch_size, class_dim), name='w')
     z = Input(batch_shape=(batch_size, latent_dim), name='z')
     if use_x_prev:
@@ -127,12 +133,14 @@ def make_decoder(model, (latent_dim_0, latent_dim), class_dim, original_dim=88, 
         mdl = Model([w, z], x_decoded_mean)
     return mdl
 
-def get_model(batch_size, original_dim,
-    (latent_dim_0, latent_dim),
-    (class_dim_0, class_dim), optimizer,
+def get_model(batch_size, original_dim, latent_dims,
+    class_dims, optimizer,
     class_weight=1.0, kl_weight=1.0, use_x_prev=False,
     w_kl_weight=1.0, w_log_var_prior=0.0):
-
+    
+    latent_dim_0, latent_dim = latent_dims
+    class_dim_0, class_dim = class_dims
+    
     x = Input(batch_shape=(batch_size, original_dim), name='x')
     if use_x_prev:
         xp = Input(batch_shape=(batch_size, original_dim), name='history')

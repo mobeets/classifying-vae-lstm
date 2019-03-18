@@ -113,7 +113,10 @@ def make_w_encoder(model, original_dim, n_classes, seq_length=1, batch_size=1):
     mdl = Model(x, [w_mean, w_log_var])
     return mdl
 
-def make_z_encoder(model, original_dim, n_classes, (latent_dim_0, latent_dim), seq_length=1, batch_size=1, stateful=True):
+def make_z_encoder(model, original_dim, n_classes, latent_dims, seq_length=1, batch_size=1, stateful=True):
+
+    latent_dim_0, latent_dim = latent_dims
+
     x = Input(batch_shape=(batch_size, seq_length, original_dim), name='x')
     w = Input(batch_shape=(batch_size, n_classes), name='w')
     xw = concatenate([x, RepeatVector(seq_length)(w)], axis=-1)
