@@ -11,7 +11,7 @@ class SGDWithWeightnorm(SGD):
         
         vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
-        assert(major >= 2), "Must use at least `keras` version 2.0.0."
+        assert(vmajor >= 2), "Must use at least `keras` version 2.0.0."
         
         if vminor == 0 and vsmall < 8: # Keras version < 2.0.8
             attributes = ['params', 'constraints', 'loss']
@@ -104,7 +104,7 @@ class AdamWithWeightnorm(Adam):
     def get_updates(self, *args, **kwargs):
         vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
-        assert(major >= 2), "Must use at least `keras` version 2.0.0."
+        assert(vmajor >= 2), "Must use at least `keras` version 2.0.0."
         
         if vminor == 0 and vsmall < 8: # Keras version < 2.0.8
             attributes = ['params', 'constraints', 'loss']
