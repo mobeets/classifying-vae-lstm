@@ -10,6 +10,13 @@ except:
     # Python 2
     import cPickle
 
+try:
+    # Python 2 
+    xrange 
+except: 
+    # Python 3
+   def xrange(x): return iter(range(x))
+
 rel_keys = {'a': 'C',
     'b-': 'D-',
     'b': 'D',
