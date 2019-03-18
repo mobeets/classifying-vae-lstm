@@ -7,8 +7,8 @@ import tensorflow as tf
 
 # adapted from keras.optimizers.SGD
 class SGDWithWeightnorm(SGD):
-    def get_updates(self, *args, **kwargs):
-        
+    def get_updates(self, loss, params):
+        ''' FINDME: IN THE WORKS
         vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
         assert(vmajor >= 2), "Must use at least `keras` version 2.0.0."
@@ -24,7 +24,7 @@ class SGDWithWeightnorm(SGD):
         
         for arg, attname in zip(args, attributes):
             exec(attname + " = arg")
-        
+        '''
         grads = self.get_gradients(loss, params)
         self.updates = []
 
@@ -101,7 +101,8 @@ class SGDWithWeightnorm(SGD):
 
 # adapted from keras.optimizers.Adam
 class AdamWithWeightnorm(Adam):
-    def get_updates(self, *args, **kwargs):
+    def get_updates(self, loss, params):
+        ''' FINDME: IN THE WORKS
         vmajor, vminor, vsmall = int32(KERAS_VERSION.split('.'))
 
         assert(vmajor >= 2), "Must use at least `keras` version 2.0.0."
@@ -113,11 +114,12 @@ class AdamWithWeightnorm(Adam):
             attributes = ['loss', 'params']
 
         for key in kwargs.keys():
-            exec(key + " = kwargs['" + key + "']")
-
+            exec("self." + key + " = kwargs['" + key + "']")
+        
         for arg, attname in zip(args, attributes):
             exec(attname + " = arg")
-
+        '''
+        
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
