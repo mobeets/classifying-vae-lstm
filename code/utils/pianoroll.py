@@ -86,7 +86,7 @@ class PianoData:
         try:
             # Python 3
             with open(train_file,'rb') as pickle_file: 
-                D = _pickle.load(pickle_file)
+                D = cPickle.load(pickle_file)
         except:
             # Python 2
             with open(train_file) as pickle_file: 
