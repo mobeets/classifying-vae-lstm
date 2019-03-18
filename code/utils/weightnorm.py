@@ -20,9 +20,11 @@ class SGDWithWeightnorm(SGD):
             attributes = ['loss', 'params']
 
         for key,val in kwargs.items():
+            print(key,val)
             exec("{} = val".format(key), locals(), locals())
 
         for arg, attname in zip(args, attributes):
+            print(arg, attname)
             exec('{} = arg'.format(attname), locals(), locals())
 
         grads = self.get_gradients(loss, params)
