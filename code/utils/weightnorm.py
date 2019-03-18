@@ -9,7 +9,7 @@ class SGDWithWeightnorm(SGD):
             params, constraints, loss = args
         except: # Keras version >= 2.0.8
             loss, params = args
-        
+
         grads = self.get_gradients(loss, params)
         self.updates = []
 
@@ -86,7 +86,12 @@ class SGDWithWeightnorm(SGD):
 
 # adapted from keras.optimizers.Adam
 class AdamWithWeightnorm(Adam):
-    def get_updates(self, params, constraints, loss):
+    get_updates(self, *args):
+        try: # Keras version < 2.0.8
+            params, constraints, loss = args
+        except: # Keras version >= 2.0.8
+            loss, params = args
+        
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
 
