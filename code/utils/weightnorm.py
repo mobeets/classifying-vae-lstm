@@ -1,3 +1,4 @@
+from keras import __version__ as KERAS_VERSION
 from keras import backend as K
 from keras.optimizers import SGD,Adam
 import tensorflow as tf
@@ -5,11 +6,22 @@ import tensorflow as tf
 # adapted from keras.optimizers.SGD
 class SGDWithWeightnorm(SGD):
     def get_updates(self, *args, **kwargs):
-        print(kwargs)
-        try: # Keras version < 2.0.8
-            params, constraints, loss = args
-        except: # Keras version >= 2.0.8
-            loss, params = args
+        
+        vmajor, vminor, vsmall = np.int32(KERAS_VERSION.split('.'))
+
+        assert(major >= 2), "Must use at least `keras` version 2.0.0."
+        
+        if vminor == 0 and vsmall < 8: # Keras version < 2.0.8
+            attributes = ['params', 'constraints', 'loss']
+
+        else: # Keras version >= 2.0.8
+            attributes = ['loss', 'params']
+
+        for key,val in kwargs.items():
+            exec("{} = val".format(key), locals(), locals())
+
+        for arg, attname in zip(args, attributes):
+            exec('{} = arg'.format(attname), locals(), locals())
 
         grads = self.get_gradients(loss, params)
         self.updates = []
@@ -88,11 +100,21 @@ class SGDWithWeightnorm(SGD):
 # adapted from keras.optimizers.Adam
 class AdamWithWeightnorm(Adam):
     def get_updates(self, *args, **kwargs):
-        print(kwargs)
-        try: # Keras version < 2.0.8
-            params, constraints, loss = args
-        except: # Keras version >= 2.0.8
-            loss, params = args
+        vmajor, vminor, vsmall = np.int32(KERAS_VERSION.split('.'))
+
+        assert(major >= 2), "Must use at least `keras` version 2.0.0."
+        
+        if vminor == 0 and vsmall < 8: # Keras version < 2.0.8
+            attributes = ['params', 'constraints', 'loss']
+
+        else: # Keras version >= 2.0.8
+            attributes = ['loss', 'params']
+
+        for key,val in kwargs.items():
+            exec("{} = val".format(key), locals(), locals())
+        
+        for arg, attname in zip(args, attributes):
+            exec('{} = arg'.format(attname), locals(), locals())
 
         grads = self.get_gradients(loss, params)
         self.updates = [K.update_add(self.iterations, 1)]
