@@ -6,7 +6,16 @@ from keras.models import Model
 from keras import backend as K
 from keras import losses
 
-def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps, w_val=None, use_z_prior=False, do_reset=True, w_sample=False, use_x_prev=False):
+try:
+    # Python 2 
+    range 
+except: 
+    # Python 3
+   def range(x): return iter(range(x))
+
+def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps, 
+                    w_val=None, use_z_prior=False, do_reset=True, 
+                    w_sample=False, use_x_prev=False):
     """
     for t = 1:nsteps
         1. encode x_seed -> w_mean, w_log_var
@@ -25,17 +34,19 @@ def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps, w_val=N
         w_t = sample_w(w_enc_model.predict(x_prev), add_noise=w_sample)
     else:
         w_t = w_val
-    for t in xrange(nsteps):
-        z_mean, z_log_var = z_enc_model.predict([x_prev, w_t])
+    for t in range(nsteps):
+        z_mean, z_log_var = z_enc_model.predict([x_prev, w_t[:,None].T])
         if use_z_prior:
             z_t = sample_z((0*z_mean, 0*z_log_var))
         else:
             z_t = sample_z((z_mean, z_log_var))
         if use_x_prev:
-            zc = [w_t, z_t, x_prev_t]
+            zc = [w_t[:,None].T, z_t, x_prev_t]
         else:
-            zc = [w_t, z_t]
+            zc = [w_t[:,None].T, z_t]
+        
         x_t = sample_x(dec_model.predict(zc))
+        
         Xs[t] = x_t
         x_prev_t = x_prev
         x_prev = x_t

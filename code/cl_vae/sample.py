@@ -5,13 +5,21 @@ from utils.pianoroll import PianoData
 from utils.midi_utils import write_sample
 from model import load_model, generate_sample, make_decoder, make_w_encoder, make_z_encoder, sample_z
 
+"""
+Code to load pianoroll data (.pickle)
+"""
+import numpy as np
+
 def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
     # generate and write sample
-    seed_ind = np.random.choice(xrange(len(P.x_test)))
+    seed_ind = np.random.choice(list(range(len(P.x_test))))
     x_seed = P.x_test[seed_ind][0]
     seed_key_ind = P.test_song_keys[seed_ind]
     w_val = None if args.infer_w else to_categorical(seed_key_ind, margs['n_classes'])
-    sample = generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, args.t,  w_val=w_val, use_z_prior=args.use_z_prior, use_x_prev=margs['use_x_prev'])
+    sample = generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, 
+                                args.t,  w_val=w_val, 
+                                use_z_prior=args.use_z_prior, 
+                                use_x_prev=margs['use_x_prev'])
     write_sample(sample, args.sample_dir, args.run_name, True)
 
 def sample(args):
@@ -28,7 +36,7 @@ def sample(args):
         squeeze_x=True)
 
     basenm = args.run_name
-    for i in xrange(args.n):
+    for i in range(args.n):
         args.run_name = basenm + '_' + str(i)
         make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs)
 

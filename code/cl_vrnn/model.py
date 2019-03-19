@@ -44,7 +44,7 @@ def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps, use_x_p
             w_t = sample_w_discrete(w_t[0])[None,:]
     else:
         w_t = w_val
-    for t in xrange(nsteps+nseedsteps):
+    for t in range(nsteps+nseedsteps):
         if t < nseedsteps:
             x_prev = x_seed[t][None,None,:]
         z_t = sample_z(z_enc_model.predict([x_prev, w_t]))

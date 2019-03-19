@@ -12,10 +12,10 @@ except:
 
 try:
     # Python 2 
-    xrange 
+    range 
 except: 
     # Python 3
-   def xrange(x): return iter(range(x))
+   def range(x): return iter(range(x))
 
 rel_keys = {'a': 'C',
     'b-': 'D-',
@@ -163,7 +163,7 @@ class PianoData:
 
     def make_keymap(self, D):
         all_keys = np.unique(np.hstack([D['train_key'], D['test_key'], D['valid_key']]))
-        return dict(zip(all_keys, xrange(len(all_keys))))
+        return dict(zip(all_keys, range(len(all_keys))))
 
     def song_keys(self, keys, song_inds):
         """

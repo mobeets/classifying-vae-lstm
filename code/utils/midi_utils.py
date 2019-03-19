@@ -6,6 +6,13 @@ from collections import defaultdict
 import numpy as np
 import midi
 
+try:
+    # Python 2 
+    range 
+except: 
+    # Python 3
+   def range(x): return iter(range(x))
+
 RANGE = 128
 
 class MidiWriter(object):
@@ -48,7 +55,7 @@ class MidiWriter(object):
         if format == 'icml':
             # assumes seq is list of lists, where each inner list are all the midi notes that were non-zero at that given timestep
             sequence = np.zeros([len(seq), self.note_range])
-            sequence = [1 if i in tmstp else 0 for i in xrange(self.note_range) for tmstp in seq]
+            sequence = [1 if i in tmstp else 0 for i in range(self.note_range) for tmstp in seq]
             sequence = np.reshape(sequence, [self.note_range,-1]).T
         elif format == 'flat':
             sequence = np.reshape(seq, [-1, self.note_range])
