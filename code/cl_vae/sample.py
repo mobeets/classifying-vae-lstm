@@ -20,6 +20,9 @@ def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
                                 args.t,  w_val=w_val, 
                                 use_z_prior=args.use_z_prior, 
                                 use_x_prev=margs['use_x_prev'])
+
+    print('[INFO] Storing New MIDI file in {}/{}.mid'.format(
+                                args.sample_dir, args.run_name))
     write_sample(sample, args.sample_dir, args.run_name, True)
 
 def sample(args):
