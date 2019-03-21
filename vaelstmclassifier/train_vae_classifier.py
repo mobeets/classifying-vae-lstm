@@ -7,7 +7,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('run_name', type=str,
                 help='tag for current run')
-    parser.add_argument('--batch_size', type=int, default=100,
+    parser.add_argument('--batch_size', type=int, default=128,
                 help='batch size')
     parser.add_argument('--optimizer', type=str, default='adam-wn',
                 help='optimizer name') # 'rmsprop'
@@ -21,9 +21,9 @@ if __name__ == '__main__':
                 help='latent dim')
     parser.add_argument('--seq_length', type=int, default=1,
                 help='sequence length (concat)')
-    parser.add_argument('--class_weight', type=float, default=1.0,
+    parser.add_argument('--clf_weight', type=float, default=1.0,
                 help='relative weight on classifying key')
-    parser.add_argument('--w_log_var_prior', type=float, default=0.0,
+    parser.add_argument('--clf_log_var_prior', type=float, default=0.0,
                 help='w log var prior')
     parser.add_argument('--intermediate_class_dim',
                 type=int, default=88,

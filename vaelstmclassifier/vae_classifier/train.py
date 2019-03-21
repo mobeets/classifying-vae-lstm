@@ -2,8 +2,10 @@
 Classifying variational autoencoders
 """
 import numpy as np
+
 from keras import backend as K
 from keras.utils import to_categorical
+from time import time
 
 from ..utils.pianoroll import PianoData
 from ..utils.model_utils import get_callbacks, save_model_in_pieces
@@ -38,6 +40,8 @@ def train(args):
 
     assert(not (args.predict_next and args.use_prev_input)), \
             "Can't use --predict_next if using --use_prev_input"
+
+    args.run_name = args.run_name + str(int(time()))
     callbacks = get_callbacks(args, patience=args.patience, 
         min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
     if args.kl_anneal > 0:
@@ -59,11 +63,22 @@ def train(args):
     classifier_dims = (args.intermediate_class_dim, args.n_classes)
 
     model, _ = get_model(batch_size = args.batch_size, 
+                         original_dim = args.original_dim, 
+                         vae_dims = vae_dims,
+                         classifier_dims = classifier_dims, 
+                         optimizer = args.optimizer,
+                         clf_weight = args.clf_weight, 
+                         kl_weight = kl_weight, 
+                         use_prev_input = args.use_prev_input,
+                         w_kl_weight = w_kl_weight, 
+                         clf_log_var_prior = args.clf_log_var_prior)
+    '''    
+    model, _ = get_model(batch_size = args.batch_size, 
                         original_dim = args.original_dim, 
                         vae_dims = vae_dims, 
                         classifier_dims = classifier_dims, 
                         optimizer = args.optimizer, 
-                        class_weight = args.class_weight,
+                        clf_weight = args.clf_weight,
                         vae_kl_weight = kl_weight, 
                         use_prev_input = args.use_prev_input, 
                         clf_kl_weight = w_kl_weight, 
@@ -75,41 +90,40 @@ def train(args):
                         dec_hid_activation = 'relu', 
                         decoder_activation = 'sigmoid',
                         wiggle_room = 1e-10)
-
+    '''
     args.optimizer = 'adam-wn' if was_adam_wn else args.optimizer
     save_model_in_pieces(model, args)
 
     if args.use_prev_input:
         vae_train = [P.y_train, P.x_train]
-        vae_validation = [P.y_valid, P.x_valid]
+        vae_features_val = [P.y_valid, P.x_valid]
     else:
         vae_train = P.x_train
-        vae_validation = P.x_valid
+        vae_features_val = P.x_valid
 
-    data_based_init(model, P.x_train[:100])
+    data_based_init(model, P.x_train[:args.batch_size])
+    debug = False
+    if debug:
+        for k,thing in enumerate(vae_train):
+            print('vae_train_thing{}.shape : {}'.format(k+1, np.shape(thing)))
+        
+        print('train_data_shape : {}'.format(np.shape(P.y_train)))
+        print('clf_train.shape : {}'.format(np.shape(clf_train)))
+        print('clf_train.shape : {}'.format(np.shape(clf_train)))
+        print('P.y_train.shape : {}'.format(np.shape(P.y_train)))
 
-    for k,thing in enumerate(vae_train):
-        print('vae_train_thing{}.shape : {}'.format(k+1, np.shape(thing)))
-    
-    print('train_data_shape : {}'.format(np.shape(P.y_train)))
-    print('clf_train.shape : {}'.format(np.shape(clf_train)))
-    print('clf_train.shape : {}'.format(np.shape(clf_train)))
-    print('P.y_train.shape : {}'.format(np.shape(P.y_train)))
+        for k,thing in enumerate(vae_features_val):
+            print('vae_val_thing{}.shape : {}'.format(k+1, np.shape(thing)))
 
-    for k,thing in enumerate(vae_validation):
-        print('vae_val_thing{}.shape : {}'.format(k+1, np.shape(thing)))
+        print('valid_data_shape : {}'.format(np.shape(P.y_valid)))
+        print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
+        print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
+        print('P.y_valid.shape : {}'.format(np.shape(P.y_valid)))
 
-    print('valid_data_shape : {}'.format(np.shape(P.y_valid)))
-    print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
-    print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
-    print('P.y_valid.shape : {}'.format(np.shape(P.y_valid)))
-
-    
-    vae_validation1 = [P.y_valid,clf_validation, clf_validation,P.y_valid]
-    validation_data = (vae_validation, vae_validation1)
+    vae_labels_val = [P.y_valid,clf_validation, clf_validation,P.y_valid]
+    validation_data = (vae_features_val, vae_labels_val)
     train_labels = [P.y_train, clf_train, clf_train, P.y_train]
-    history = model.fit(vae_train, 
-                        ,
+    history = model.fit(vae_train, train_labels,
                         shuffle=True,
                         epochs=args.num_epochs,
                         batch_size=args.batch_size,
