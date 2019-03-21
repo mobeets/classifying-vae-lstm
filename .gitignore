@@ -8,3 +8,4 @@ data/models/*
 build
 dist
 *egg*
+*broken*
