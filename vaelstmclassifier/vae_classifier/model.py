@@ -153,9 +153,10 @@ def make_decoder(model, vae_dims, class_dim, original_dim = 88,
         return Model([clf_layer, vae_latent_layer], vae_decoded_mean)
 
 def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer, 
-                clf_weight = 1.0, kl_weight = 1.0, use_prev_input = False,
-                w_kl_weight = 1.0, clf_log_var_prior = 0.0, 
-                clf_latent_dim = None):
+                clf_weight = 1.0, vae_kl_weight = 1.0, use_prev_input = False,
+                clf_kl_weight = 1.0, clf_log_var_prior = 0.0, 
+                clf_latent_dim = None, hidden_activation = 'relu',
+                output_activation = 'sigmoid'):
     
     vae_hidden_dim, vae_latent_dim = vae_dims
     clf_hidden_dim, class_dim = classifier_dims
@@ -170,7 +171,7 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
                                     name = 'previous_input_layer')
 
     # build classifier
-    clf_hidden_layer = Dense(clf_hidden_dim, activation = 'relu', 
+    clf_hidden_layer = Dense(clf_hidden_dim, activation = hidden_activation, 
                                              name = 'clf_hidden_layer')
     clf_hidden_layer = clf_hidden_layer(input_layer)
 
@@ -198,9 +199,10 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
 
     # build latent encoder
     input_w_pred = concatenate([input_layer, clf_pred], axis = -1)
+
     if vae_hidden_dim > 0:
         vae_hidden_layer = Dense(vae_hidden_dim, 
-                                    activation = 'relu', 
+                                    activation = hidden_activation, 
                                     name = 'vae_hidden_layer')
         vae_hidden_layer = vae_hidden_layer(input_w_pred)
         
@@ -231,11 +233,12 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
     
     pred_w_latent = concatenate([clf_pred, prev_w_vae_latent], axis = -1)
     
-    vae_decoded_mean = Dense(original_dim, activation = 'sigmoid', 
+    vae_decoded_mean = Dense(original_dim, activation = output_activation, 
                                            name = 'vae_decoded_mean')
     if vae_hidden_dim > 0:
-        vae_dec_hid_layer = Dense(vae_hidden_dim, activation = 'relu', 
-                                                  name = 'vae_dec_hid_layer')
+        vae_dec_hid_layer = Dense(vae_hidden_dim, 
+                                    activation = hidden_activation, 
+                                    name = 'vae_dec_hid_layer')
 
         vae_dec_hid_layer = vae_dec_hid_layer(pred_w_latent)
         vae_decoded_mean = vae_decoded_mean(vae_dec_hid_layer)
@@ -245,8 +248,8 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
     def vae_loss(input_layer, vae_decoded_mean):
         inp_vae_loss = losses.binary_crossentropy(input_layer,vae_decoded_mean)
         return original_dim*inp_vae_loss
-
-    def kl_loss(z_true, vae_latent_args):
+    
+    def vae_kl_loss(z_true, vae_latent_args):
         Z_mean = vae_latent_args[:,:vae_latent_dim]
         Z_log_var = vae_latent_args[:,vae_latent_dim:]
         k_summer = 1 + Z_log_var - K.square(Z_mean) - K.exp(Z_log_var)
@@ -264,31 +267,42 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
         vs = vs - K.square(clf_mean)/K.exp(clf_log_var_prior)
         return -0.5*K.sum(vs, axis = -1)
 
-    w2 = Lambda(lambda tmp: tmp+1e-10, name = 'w2')(clf_pred)
+    clf_pred_mod = Lambda(lambda tmp: tmp+1e-10, 
+                            name = 'classifier_prediction_mod')
+    clf_pred_mod = clf_pred_mod(clf_pred)
+
     vae_latent_args = concatenate([vae_latent_mean, vae_latent_log_var], 
                                         axis = -1, name = 'vae_latent_args')
 
     if use_prev_input:
         model = Model([input_layer, prev_input_layer], 
-                        [vae_decoded_mean, clf_pred, w2, vae_latent_args])
+                        [vae_decoded_mean, clf_pred, clf_pred_mod, vae_latent_args])
         enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean,
                                                              clf_mean])
     else:
-        model = Model(input_layer, [vae_decoded_mean, clf_pred, w2, vae_latent_args])
+        model = Model(input_layer, [vae_decoded_mean, clf_pred, clf_pred_mod, vae_latent_args])
         enc_model = Model(input_layer, [vae_latent_mean, clf_mean])
-    model.compile(optimizer = optimizer,
-        loss = {'vae_decoded_mean': vae_loss, 
-                'classifier_prediction': classifier_kl_loss, 
-                'w2': classifier_rec_loss, 'vae_latent_args': kl_loss},
-        loss_weights = {'vae_decoded_mean': 1.0, 
-                    'classifier_prediction': w_kl_weight, 
-                        'w2': clf_weight, 'vae_latent_args': kl_weight},
-        metrics = {'classifier_prediction': 'accuracy'})
+
+    model.compile(  optimizer = optimizer,
+                    
+                    loss = {'vae_decoded_mean': vae_loss, 
+                            'classifier_prediction': classifier_kl_loss, 
+                            'classifier_prediction_mod': classifier_rec_loss, 
+                            'vae_latent_args': vae_kl_loss},
+
+                    loss_weights = {'vae_decoded_mean': 1.0, 
+                                    'classifier_prediction': clf_kl_weight, 
+                                    'classifier_prediction_mod': clf_weight, 
+                                    'vae_latent_args': vae_kl_weight},
+
+                    metrics = {'classifier_prediction': 'accuracy'})
+
     if use_prev_input:
         enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean, 
                                                             clf_mean])
     else:
         enc_model = Model(input_layer, [vae_latent_mean, clf_mean])
+
     return model, enc_model
 
 def load_model(model_file, optimizer = 'adam', 

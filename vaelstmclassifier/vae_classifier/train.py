@@ -46,16 +46,16 @@ def train(args):
         min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
     if args.kl_anneal > 0:
         assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
-        kl_weight = K.variable(value=0.1)
-        callbacks += [AnnealLossWeight(kl_weight, name="kl_weight", final_value=1.0, n_epochs=args.kl_anneal)]
+        vae_kl_weight = K.variable(value=0.1)
+        callbacks += [AnnealLossWeight(vae_kl_weight, name="vae_kl_weight", final_value=1.0, n_epochs=args.kl_anneal)]
     else:
-        kl_weight = 1.0
+        vae_kl_weight = 1.0
     if args.w_kl_anneal > 0:
         assert(args.w_kl_anneal <= args.num_epochs), "invalid w_kl_anneal"
-        w_kl_weight = K.variable(value=0.0)
-        callbacks += [AnnealLossWeight(w_kl_weight, name="w_kl_weight", final_value=1.0, n_epochs=args.w_kl_anneal)]
+        clf_kl_weight = K.variable(value=0.0)
+        callbacks += [AnnealLossWeight(clf_kl_weight, name="clf_kl_weight", final_value=1.0, n_epochs=args.w_kl_anneal)]
     else:
-        w_kl_weight = 1.0
+        clf_kl_weight = 1.0
 
     args.optimizer, was_adam_wn = init_adam_wn(args.optimizer)
 
@@ -68,9 +68,9 @@ def train(args):
                          classifier_dims = classifier_dims, 
                          optimizer = args.optimizer,
                          clf_weight = args.clf_weight, 
-                         kl_weight = kl_weight, 
+                         vae_kl_weight = vae_kl_weight, 
                          use_prev_input = args.use_prev_input,
-                         w_kl_weight = w_kl_weight, 
+                         clf_kl_weight = clf_kl_weight, 
                          clf_log_var_prior = args.clf_log_var_prior)
     '''    
     model, _ = get_model(batch_size = args.batch_size, 
@@ -79,7 +79,7 @@ def train(args):
                         classifier_dims = classifier_dims, 
                         optimizer = args.optimizer, 
                         clf_weight = args.clf_weight,
-                        vae_kl_weight = kl_weight, 
+                        vae_kl_weight = vae_kl_weight, 
                         use_prev_input = args.use_prev_input, 
                         clf_kl_weight = w_kl_weight, 
                         clf_log_var_prior = args.w_log_var_prior,
