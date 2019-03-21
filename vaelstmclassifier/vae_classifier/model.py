@@ -35,7 +35,8 @@ def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps,
     else:
         w_t = w_val
     for t in range(nsteps):
-        vae_latent_mean, vae_latent_log_var = z_enc_model.predict([x_prev, w_t[:,None].T])
+        vae_latent_mean, vae_latent_log_var = z_enc_model.predict(
+                                                    [x_prev, w_t[:,None].T])
         if use_z_prior:
             z_t = sample_z((0*vae_latent_mean, 0*vae_latent_log_var))
         else:
@@ -89,12 +90,11 @@ def make_w_encoder(model, original_dim, batch_size = 1):
                             name = 'input_layer')
 
     # build label encoder
-    h_w = model.get_layer('h_w')(input_layer)
-    clf_mean = model.get_layer('clf_mean')(h_w)
-    clf_log_var = model.get_layer('clf_log_var')(h_w)
+    enc_hidden_layer = model.get_layer('enc_hidden_layer')(input_layer)
+    clf_mean = model.get_layer('clf_mean')(enc_hidden_layer)
+    clf_log_var = model.get_layer('clf_log_var')(enc_hidden_layer)
 
-    mdl = Model(input_layer, [clf_mean, clf_log_var])
-    return mdl
+    return Model(input_layer, [clf_mean, clf_log_var])
 
 def make_z_encoder(model, original_dim, class_dim, vae_dims, batch_size = 1):
     
@@ -113,12 +113,13 @@ def make_z_encoder(model, original_dim, class_dim, vae_dims, batch_size = 1):
         vae_latent_log_var = model.get_layer('vae_latent_log_var')(vae_hidden_layer)
     else:
         vae_latent_mean = model.get_layer('vae_latent_mean')(input_w_pred)
-        vae_latent_log_var = model.get_layer('vae_latent_log_var')(input_w_pred)
+        vae_latent_log_var= model.get_layer('vae_latent_log_var')(input_w_pred)
 
-    mdl = Model([input_layer, clf_layer], [vae_latent_mean, vae_latent_log_var])
-    return mdl
+    return Model([input_layer, clf_layer], [vae_latent_mean, 
+                                                vae_latent_log_var])
 
-def make_decoder(model, vae_dims, class_dim, original_dim = 88, use_prev_input = False, batch_size = 1):
+def make_decoder(model, vae_dims, class_dim, original_dim = 88, 
+                    use_prev_input = False, batch_size = 1):
 
     vae_hidden_dim, vae_latent_dim = vae_dims
 
@@ -146,14 +147,15 @@ def make_decoder(model, vae_dims, class_dim, original_dim = 88, use_prev_input =
         vae_decoded_mean = vae_decoded_mean(pred_w_latent)
 
     if use_prev_input:
-        mdl = Model([clf_layer, vae_latent_layer, prev_input_layer], vae_decoded_mean)
+        return Model([clf_layer, vae_latent_layer, prev_input_layer], 
+                                                        vae_decoded_mean)
     else:
-        mdl = Model([clf_layer, vae_latent_layer], vae_decoded_mean)
-    return mdl
+        return Model([clf_layer, vae_latent_layer], vae_decoded_mean)
 
 def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer, 
                 clf_weight = 1.0, kl_weight = 1.0, use_prev_input = False,
-                w_kl_weight = 1.0, clf_log_var_prior = 0.0, clf_latent_dim = None):
+                w_kl_weight = 1.0, clf_log_var_prior = 0.0, 
+                clf_latent_dim = None):
     
     vae_hidden_dim, vae_latent_dim = vae_dims
     clf_hidden_dim, class_dim = classifier_dims
@@ -269,7 +271,8 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
     if use_prev_input:
         model = Model([input_layer, prev_input_layer], 
                         [vae_decoded_mean, clf_pred, w2, vae_latent_args])
-        enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean, clf_mean])
+        enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean,
+                                                             clf_mean])
     else:
         model = Model(input_layer, [vae_decoded_mean, clf_pred, w2, vae_latent_args])
         enc_model = Model(input_layer, [vae_latent_mean, clf_mean])
@@ -282,12 +285,14 @@ def get_model(batch_size, original_dim, vae_dims, classifier_dims, optimizer,
                         'w2': clf_weight, 'vae_latent_args': kl_weight},
         metrics = {'classifier_prediction': 'accuracy'})
     if use_prev_input:
-        enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean, clf_mean])
+        enc_model = Model([input_layer, prev_input_layer], [vae_latent_mean, 
+                                                            clf_mean])
     else:
         enc_model = Model(input_layer, [vae_latent_mean, clf_mean])
     return model, enc_model
 
-def load_model(model_file, optimizer = 'adam', batch_size = 1, no_x_prev = False):
+def load_model(model_file, optimizer = 'adam', 
+                batch_size = 1, no_x_prev = False):
     """
     there's a curently bug in the way keras loads models from .yaml
         that has to do with Lambdas
@@ -296,8 +301,16 @@ def load_model(model_file, optimizer = 'adam', batch_size = 1, no_x_prev = False
     margs = json.load(open(model_file.replace('.h5', '.json')))
     # model = model_from_yaml(open(args.model_file))
     batch_size = margs['batch_size'] if batch_size == None else batch_size
+
     if no_x_prev or 'use_prev_input' not in margs:
         margs['use_prev_input'] = False
-    model, enc_model = get_model(batch_size, margs['original_dim'], (margs['intermediate_dim'], margs['vae_latent_dim']), (margs['intermediate_class_dim'], margs['n_classes']), optimizer, margs['clf_weight'], use_prev_input = margs['use_prev_input'])
+
+    model, enc_model = get_model(batch_size, margs['original_dim'], 
+                        (margs['intermediate_dim'], margs['vae_latent_dim']), 
+                        (margs['intermediate_class_dim'], margs['n_classes']), 
+                        optimizer, margs['clf_weight'], 
+                        use_prev_input = margs['use_prev_input'])
+
     model.load_weights(model_file)
+
     return model, enc_model, margs
