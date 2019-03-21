@@ -89,36 +89,36 @@ def make_w_encoder(model, original_dim, batch_size=1):
     x = Input(batch_shape=(batch_size, original_dim), name='x')
 
     # build label encoder
-    h_w = model.get_layer('h_w')(x)
-    w_mean = model.get_layer('w_mean')(h_w)
-    w_log_var = model.get_layer('w_log_var')(h_w)
+    clf_hidden_layer = model.get_layer('clf_hidden_layer')(x)
+    w_mean = model.get_layer('w_mean')(clf_hidden_layer)
+    w_log_var = model.get_layer('w_log_var')(clf_hidden_layer)
 
     mdl = Model(x, [w_mean, w_log_var])
     return mdl
 
 def make_z_encoder(model, original_dim, class_dim, latent_dims, batch_size=1):
     
-    latent_dim_0, latent_dim = latent_dims
+    encoder_hidden_dim, latent_dim = latent_dims
 
-    x = Input(batch_shape=(batch_size, original_dim), name='x')
-    w = Input(batch_shape=(batch_size, class_dim), name='w')
-    xw = concatenate([x, w], axis=-1)
+    input_encoder = Input(batch_shape=(batch_size, original_dim), name='x')
+    input_classifier = Input(batch_shape=(batch_size, class_dim), name='w')
+    input_w_clf = concatenate([input_encoder, input_classifier], axis=-1)
 
     # build latent encoder
-    if latent_dim_0 > 0:
-        h = model.get_layer('h')(xw)
-        z_mean = model.get_layer('z_mean')(h)
-        z_log_var = model.get_layer('z_log_var')(h)
+    if encoder_hidden_dim > 0:
+        enc_hidden_layer = model.get_layer('h')(input_w_clf)
+        latent_mean = model.get_layer('latent_mean')(enc_hidden_layer)
+        latent_log_var = model.get_layer('latent_log_var')(enc_hidden_layer)
     else:
-        z_mean = model.get_layer('z_mean')(xw)
-        z_log_var = model.get_layer('z_log_var')(xw)
+        latent_mean = model.get_layer('latent_mean')(input_w_clf)
+        latent_log_var = model.get_layer('latent_log_var')(input_w_clf)
 
-    mdl = Model([x, w], [z_mean, z_log_var])
-    return mdl
+    return  Model([input_encoder, input_classifier], \
+                    [latent_mean, latent_log_var])
 
 def make_decoder(model, latent_dims, class_dim, original_dim=88, use_x_prev=False, batch_size=1):
 
-    latent_dim_0, latent_dim = latent_dims
+    encoder_hidden_dim, latent_dim = latent_dims
 
     w = Input(batch_shape=(batch_size, class_dim), name='w')
     z = Input(batch_shape=(batch_size, latent_dim), name='z')
@@ -132,7 +132,7 @@ def make_decoder(model, latent_dims, class_dim, original_dim=88, use_x_prev=Fals
 
     # build x decoder
     decoder_mean = model.get_layer('x_decoded_mean')
-    if latent_dim_0 > 0:
+    if encoder_hidden_dim > 0:
         decoder_h = model.get_layer('decoder_h')
         h_decoded = decoder_h(wz)
         x_decoded_mean = decoder_mean(h_decoded)
@@ -145,102 +145,173 @@ def make_decoder(model, latent_dims, class_dim, original_dim=88, use_x_prev=Fals
         mdl = Model([w, z], x_decoded_mean)
     return mdl
 
-def get_model(batch_size, original_dim, latent_dims,
-    class_dims, optimizer,
-    class_weight=1.0, kl_weight=1.0, use_x_prev=False,
-    w_kl_weight=1.0, w_log_var_prior=0.0):
+def get_model(batch_size, original_dim, vae_dims,
+              classifier_dims, optimizer, clf_lat_dim = None, 
+              class_weight = 1.0, clf_dec_weight = 1.0, vae_kl_weight = 1.0, 
+              clf_kl_weight = 1.0, use_prev_input = False, 
+              clf_log_var_prior = 0.0,
+              clf_hid_activation = 'relu', enc_hid_activation = 'relu', 
+              dec_hid_activation = 'relu', decoder_activation = 'sigmoid',
+              wiggle_room = 1e-10):
     
-    latent_dim_0, latent_dim = latent_dims
-    class_dim_0, class_dim = class_dims
+    encoder_hidden_dim, latent_dim = vae_dims
+    classifier_hidden_dim, class_dim = classifier_dims
     
-    x = Input(batch_shape=(batch_size, original_dim), name='x')
-    if use_x_prev:
-        xp = Input(batch_shape=(batch_size, original_dim), name='history')
+    '''FINDME: Why was this sized `class_dim-1`??'''
+    clf_lat_dim = clf_lat_dim or class_dim - 1
+
+    input_layer = Input(batch_shape = (batch_size, original_dim), 
+                        name = 'input_layer')
+    if use_prev_input:
+        prev_input_layer = Input(batch_shape = (batch_size, original_dim), 
+                                    name = 'previous_input_layer')
 
     # build label encoder
-    h_w = Dense(class_dim_0, activation='relu', name='h_w')(x)
-    w_mean = Dense(class_dim-1, name='w_mean')(h_w)
-    w_log_var = Dense(class_dim-1, name='w_log_var')(h_w)
+    clf_hidden_layer = Dense(classifier_hidden_dim, 
+                                activation = clf_hid_activation, 
+                                name = 'classifier_hidden_layer')(input_layer)
+
+    clf_mean = Dense(class_dim, name = 'classifier_mean')
+    clf_log_var = Dense(class_dim, name = 'classifier_log_var')
+
+    clf_mean = clf_mean(clf_hidden_layer)
+    clf_log_var = clf_log_var(clf_hidden_layer)
 
     # sample label
-    def w_sampling(args):
+    def classification_sampling(args):
         """
-        sample from a logit-normal with params w_mean and w_log_var
+        sample from a logit-normal with params clf_mean and clf_log_var
             (n.b. this is very similar to a logistic-normal distribution)
         """
-        w_mean, w_log_var = args
-        eps = K.random_normal(shape=(batch_size, class_dim-1), mean=0., stddev=1.0)
-        w_norm = w_mean + K.exp(w_log_var/2) * eps
+        clf_mean, clf_log_var = args
+        
+        eps = K.random_normal(shape = (batch_size, clf_lat_dim), 
+                                mean = 0., stddev=1.0)
+
+        clf_norm = clf_mean + K.exp(clf_log_var/2) * eps
+
         # need to add '0' so we can sum it all to 1
-        w_norm = concatenate([w_norm, K.tf.zeros(batch_size, 1)[:,None]])
-        return K.exp(w_norm)/K.sum(K.exp(w_norm), axis=-1)[:,None]
-    w = Lambda(w_sampling, name='w')([w_mean, w_log_var])
+        clf_norm = concatenate([clf_norm, K.tf.zeros(batch_size, 1)[:,None]])
+        return K.exp(clf_norm)/K.sum(K.exp(clf_norm), axis = -1)[:,None]
+
+    classifier = Lambda(classification_sampling, name = 'classifier')
+    classifier = classifier([clf_mean, clf_log_var])
 
     # build latent encoder
-    xw = concatenate([x, w], axis=-1)
-    if latent_dim_0 > 0:
-        h = Dense(latent_dim_0, activation='relu', name='h')(xw)
-        z_mean = Dense(latent_dim, name='z_mean')(h)
-        z_log_var = Dense(latent_dim, name='z_log_var')(h)
+    input_w_clf = concatenate([input_layer, classifier], axis = -1)
+    if encoder_hidden_dim > 0:
+        enc_hidden_layer = Dense(encoder_hidden_dim, 
+                                    activation = enc_hid_activation, 
+                                    name = 'encoder_hidden_layer')(input_w_clf)
+
+        latent_mean = Dense(latent_dim, name = 'vae_latent_mean')
+        latent_log_var = Dense(latent_dim, name = 'vae_latent_log_var')
+
+        latent_mean = latent_mean(enc_hidden_layer)
+        latent_log_var = latent_log_var(enc_hidden_layer)
+
     else:
-        z_mean = Dense(latent_dim, name='z_mean')(xw)
-        z_log_var = Dense(latent_dim, name='z_log_var')(xw)
+        latent_mean = Dense(latent_dim, name = 'vae_latent_mean')
+        latent_log_var = Dense(latent_dim, name = 'vae_latent_log_var')
+
+        latent_mean = latent_mean(input_w_clf)
+        latent_log_var = latent_log_var(input_w_clf)
 
     # sample latents
-    def sampling(args):
-        z_mean, z_log_var = args
-        eps = K.random_normal(shape=(batch_size, latent_dim), mean=0., stddev=1.0)
-        return z_mean + K.exp(z_log_var/2) * eps
-    z = Lambda(sampling, name='z')([z_mean, z_log_var])
+    def encoder_sampling(args):
+        latent_mean, latent_log_var = args
+        eps = K.random_normal(shape = (batch_size, latent_dim), 
+                                mean = 0., stddev = 1.0)
+        return latent_mean + K.exp(latent_log_var/2) * eps
+    
+    latent_layer = Lambda(encoder_sampling, name = 'latent_layer')
+    latent_layer = latent_layer([latent_mean, latent_log_var])
 
     # build decoder
-    if use_x_prev:
-        xpz = concatenate([xp, z], axis=-1)
+    if use_prev_input:
+        prev_w_lat_layer = concatenate([prev_input_layer,latent_layer],axis=-1)
     else:
-        xpz = z
-    wz = concatenate([w, xpz], axis=-1)
-    decoder_mean = Dense(original_dim, activation='sigmoid', name='x_decoded_mean')
-    if latent_dim_0 > 0:
-        decoder_h = Dense(latent_dim_0, activation='relu', name='decoder_h')
-        h_decoded = decoder_h(wz)
-        x_decoded_mean = decoder_mean(h_decoded)
+        prev_w_lat_layer = latent_layer
+    
+    classifier_w_lat = concatenate([classifier, prev_w_lat_layer], axis = -1)
+    
+    decoder_mean = Dense(original_dim, 
+                            activation = decoder_activation, 
+                            name = 'clf_decoded_mean')
+
+    if encoder_hidden_dim > 0:
+        dec_hidden_layer = Dense(encoder_hidden_dim, 
+                                    activation = dec_hid_activation, 
+                                    name = 'dec_hidden_layer')
+
+        dec_hidden_layer = dec_hidden_layer(classifier_w_lat)
+        clf_dec_mean = decoder_mean(dec_hidden_layer)
     else:
-        x_decoded_mean = decoder_mean(wz)
+        clf_dec_mean = decoder_mean(classifier_w_lat)
 
-    def vae_loss(x, x_decoded_mean):
-        return original_dim * losses.binary_crossentropy(x, x_decoded_mean)
+    def vae_loss(input_layer, decoded_mean):
+        return original_dim*losses.binary_crossentropy(input_layer,
+                                                        decoded_mean)
 
-    def kl_loss(z_true, z_args):
-        Z_mean = z_args[:,:latent_dim]
-        Z_log_var = z_args[:,latent_dim:]
-        return -0.5*K.sum(1 + Z_log_var - K.square(Z_mean) - K.exp(Z_log_var), axis=-1)
+    def vae_kl_loss(z_true, latent_args):
+        ''' The variable names here confuse me a little;
+                but they are all temporary; so we can keep them.
+            Need to investigate how keras.models.Model.compile 
+                calls on  multiple manually configure loss terms'''
+        Z_mean = latent_args[:,:latent_dim]
+        Z_log_var = latent_args[:,latent_dim:]
 
-    def w_rec_loss(w_true, w):
-        return (class_dim-1) * losses.categorical_crossentropy(w_true, w)
+        kl = 1 + Z_log_var - K.square(Z_mean) - K.exp(Z_log_var)
+        return -0.5*K.sum(kl, axis = -1)
 
-    # w_log_var_prior = 1.0
-    def w_kl_loss(w_true, w):
-        # w_log_var_prior
-        # return -0.5 * K.sum(1 + w_log_var - K.square(w_mean) - K.exp(w_log_var), axis=-1)
-        vs = 1 - w_log_var_prior + w_log_var - K.exp(w_log_var)/K.exp(w_log_var_prior) - K.square(w_mean)/K.exp(w_log_var_prior)
-        return -0.5*K.sum(vs, axis=-1)
+    def clf_rec_loss(clf_true, classifier):
+        return clf_lat_dim*losses.categorical_crossentropy(clf_true,classifier)
 
-    w2 = Lambda(lambda x: x+1e-10, name='w2')(w)
-    z_args = concatenate([z_mean, z_log_var], axis=-1, name='z_args')
-    if use_x_prev:
-        model = Model([x, xp], [x_decoded_mean, w, w2, z_args])
-        enc_model = Model([x, xp], [z_mean, w_mean])
+    # clf_log_var_prior = 1.0
+    def clf_kl_loss(labels, predictions):
+        vs = 1 - clf_log_var_prior + clf_log_var 
+        vs = vs - K.exp(clf_log_var)/K.exp(clf_log_var_prior) 
+        vs = vs - K.square(clf_mean)/K.exp(clf_log_var_prior)
+
+        return -0.5*K.sum(vs, axis = -1)
+
+    classifier_mod = Lambda(lambda tmp: tmp+wiggle_room, name='classifier_mod')
+    classifier_mod = classifier_mod(classifier)
+
+    latent_args = concatenate([latent_mean, latent_log_var], 
+                                axis = -1, name = 'latent_args')
+    
+    if use_prev_input:
+        input_stack = [input_layer, prev_input_layer]
     else:
-        model = Model(x, [x_decoded_mean, w, w2, z_args])
-        enc_model = Model(x, [z_mean, w_mean])
-    model.compile(optimizer=optimizer,
-        loss={'x_decoded_mean': vae_loss, 'w': w_kl_loss, 'w2': w_rec_loss, 'z_args': kl_loss},
-        loss_weights={'x_decoded_mean': 1.0, 'w': w_kl_weight, 'w2': class_weight, 'z_args': kl_weight},
-        metrics={'w': 'accuracy'})
-    if use_x_prev:
-        enc_model = Model([x, xp], [z_mean, w_mean])
+        input_stack = [input_layer]
+    
+    lat_out_stack = [latent_mean, clf_mean]
+    clf_out_stack = [clf_dec_mean, classifier, classifier_mod, latent_args]
+
+    model = Model(input_stack, clf_out_stack)
+    enc_model = Model(input_stack, [latent_mean, clf_mean])
+
+    model.compile(optimizer = optimizer,
+                  loss = {'clf_decoded_mean': vae_loss, 
+                          'classifier': clf_kl_loss, 
+                          'classifier_mod': clf_rec_loss, 
+                          'latent_args': vae_kl_loss},
+                  loss_weights = {'clf_decoded_mean': clf_dec_weight, 
+                                  'classifier': clf_kl_weight, 
+                                  'classifier_mod': class_weight, 
+                                  'latent_args': vae_kl_weight},
+                  metrics = {'classifier': 'accuracy'})
+
+    lat_out_stack = [latent_mean, clf_mean]
+    
+    if use_prev_input:
+        input_stack = [input_layer, prev_input_layer]
     else:
-        enc_model = Model(x, [z_mean, w_mean])
+        input_stack = [input_layer] # may need to remove the brackets
+
+    enc_model = Model(input_stack, lat_out_stack)
+
     return model, enc_model
 
 def load_model(model_file, optimizer='adam', batch_size=1, no_x_prev=False):

@@ -1,7 +1,6 @@
 """
 Classifying variational autoencoders
 """
-import argparse
 import numpy as np
 from keras import backend as K
 from keras.utils import to_categorical
@@ -18,7 +17,7 @@ def train(args):
         batch_size=args.batch_size,
         seq_length=args.seq_length,
         step_length=1,
-        return_y_next=args.predict_next or args.use_x_prev,
+        return_y_next=args.predict_next or args.use_prev_input,
         squeeze_x=True,
         squeeze_y=True)
     if args.seq_length > 1:
@@ -33,12 +32,12 @@ def train(args):
         args.original_dim = ix.sum()*args.seq_length
 
     args.n_classes = len(np.unique(P.train_song_keys))
-    wtr = to_categorical(P.train_song_keys, args.n_classes)
-    wva = to_categorical(P.valid_song_keys, args.n_classes)
+    clf_train = to_categorical(P.train_song_keys, args.n_classes)
+    clf_validation = to_categorical(P.valid_song_keys, args.n_classes)
     wte = to_categorical(P.test_song_keys, args.n_classes)
 
-    assert(not (args.predict_next and args.use_x_prev)), \
-            "Can't use --predict_next if using --use_x_prev"
+    assert(not (args.predict_next and args.use_prev_input)), \
+            "Can't use --predict_next if using --use_prev_input"
     callbacks = get_callbacks(args, patience=args.patience, 
         min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
     if args.kl_anneal > 0:
@@ -55,72 +54,70 @@ def train(args):
         w_kl_weight = 1.0
 
     args.optimizer, was_adam_wn = init_adam_wn(args.optimizer)
-    model, enc_model = get_model(args.batch_size, args.original_dim, (args.intermediate_dim, args.latent_dim), (args.intermediate_class_dim, args.n_classes), args.optimizer, args.class_weight, kl_weight, use_x_prev=args.use_x_prev, w_kl_weight=w_kl_weight, w_log_var_prior=args.w_log_var_prior)
+
+    vae_dims = (args.intermediate_dim, args.latent_dim)
+    classifier_dims = (args.intermediate_class_dim, args.n_classes)
+
+    model, _ = get_model(batch_size = args.batch_size, 
+                        original_dim = args.original_dim, 
+                        vae_dims = vae_dims, 
+                        classifier_dims = classifier_dims, 
+                        optimizer = args.optimizer, 
+                        class_weight = args.class_weight,
+                        vae_kl_weight = kl_weight, 
+                        use_prev_input = args.use_prev_input, 
+                        clf_kl_weight = w_kl_weight, 
+                        clf_log_var_prior = args.w_log_var_prior,
+                        clf_lat_dim = None, 
+                        clf_dec_weight = 1.0,
+                        clf_hid_activation = 'relu', 
+                        enc_hid_activation = 'relu', 
+                        dec_hid_activation = 'relu', 
+                        decoder_activation = 'sigmoid',
+                        wiggle_room = 1e-10)
+
     args.optimizer = 'adam-wn' if was_adam_wn else args.optimizer
     save_model_in_pieces(model, args)
 
-    if args.use_x_prev:
-        xtr = [P.y_train, P.x_train]
-        xva = [P.y_valid, P.x_valid]
+    if args.use_prev_input:
+        vae_train = [P.y_train, P.x_train]
+        vae_validation = [P.y_valid, P.x_valid]
     else:
-        xtr = P.x_train
-        xva = P.x_valid
+        vae_train = P.x_train
+        vae_validation = P.x_valid
 
     data_based_init(model, P.x_train[:100])
-    history = model.fit(xtr, [P.y_train, wtr, wtr, P.y_train],
-            shuffle=True,
-            epochs=args.num_epochs,
-            batch_size=args.batch_size,
-            callbacks=callbacks,
-            validation_data=(xva, [P.y_valid, wva, wva, P.y_valid]))
-    best_ind = np.argmin([x if i >= max(args.kl_anneal, args.w_kl_anneal)+1 else np.inf for i,x in enumerate(history.history['val_loss'])])
-    best_loss = {k: history.history[k][best_ind] for k in history.history}
-    return model, best_loss
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('run_name', type=str,
-                help='tag for current run')
-    parser.add_argument('--batch_size', type=int, default=100,
-                help='batch size')
-    parser.add_argument('--optimizer', type=str, default='adam-wn',
-                help='optimizer name') # 'rmsprop'
-    parser.add_argument('--num_epochs', type=int, default=200,
-                help='number of epochs')
-    parser.add_argument('--original_dim', type=int, default=88,
-                help='input dim')
-    parser.add_argument('--intermediate_dim', type=int, default=88,
-                help='intermediate dim')
-    parser.add_argument('--latent_dim', type=int, default=2,
-                help='latent dim')
-    parser.add_argument('--seq_length', type=int, default=1,
-                help='sequence length (concat)')
-    parser.add_argument('--class_weight', type=float, default=1.0,
-                help='relative weight on classifying key')
-    parser.add_argument('--w_log_var_prior', type=float, default=0.0,
-                help='w log var prior')
-    parser.add_argument('--intermediate_class_dim',
-                type=int, default=88,
-                help='intermediate dims for classes')
-    parser.add_argument("--do_log", action="store_true", 
-                help="save log files")
-    parser.add_argument("--predict_next", action="store_true", 
-                help="use x_t to 'autoencode' x_{t+1}")
-    parser.add_argument("--use_x_prev", action="store_true",
-                help="use x_{t-1} to help z_t decode x_t")
-    parser.add_argument('--patience', type=int, default=5,
-                help='# of epochs, for early stopping')
-    parser.add_argument("--kl_anneal", type=int, default=0, 
-                help="number of epochs before kl loss term is 1.0")
-    parser.add_argument("--w_kl_anneal", type=int, default=0, 
-                help="number of epochs before w's kl loss term is 1.0")
-    parser.add_argument('--log_dir', type=str, default='../data/logs',
-                help='basedir for saving log files')
-    parser.add_argument('--model_dir', type=str,
-                default='../data/models',
-                help='basedir for saving model weights')    
-    parser.add_argument('--train_file', type=str,
-                default='../data/input/JSB Chorales_Cs.pickle',
-                help='file of training data (.pickle)')
-    args = parser.parse_args()
-    train(args)
+    for k,thing in enumerate(vae_train):
+        print('vae_train_thing{}.shape : {}'.format(k+1, np.shape(thing)))
+    
+    print('train_data_shape : {}'.format(np.shape(P.y_train)))
+    print('clf_train.shape : {}'.format(np.shape(clf_train)))
+    print('clf_train.shape : {}'.format(np.shape(clf_train)))
+    print('P.y_train.shape : {}'.format(np.shape(P.y_train)))
+
+    for k,thing in enumerate(vae_validation):
+        print('vae_val_thing{}.shape : {}'.format(k+1, np.shape(thing)))
+
+    print('valid_data_shape : {}'.format(np.shape(P.y_valid)))
+    print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
+    print('clf_validation.shape : {}'.format(np.shape(clf_validation)))
+    print('P.y_valid.shape : {}'.format(np.shape(P.y_valid)))
+
+    
+    vae_validation1 = [P.y_valid,clf_validation, clf_validation,P.y_valid]
+    validation_data = (vae_validation, vae_validation1)
+    train_labels = [P.y_train, clf_train, clf_train, P.y_train]
+    history = model.fit(vae_train, 
+                        ,
+                        shuffle=True,
+                        epochs=args.num_epochs,
+                        batch_size=args.batch_size,
+                        callbacks=callbacks,
+                        validation_data=validation_data)
+
+    best_ind = np.argmin([x if i >= max(args.kl_anneal, args.w_kl_anneal)+1 else np.inf for i,x in enumerate(history.history['val_loss'])])
+    
+    best_loss = {k: history.history[k][best_ind] for k in history.history}
+    
+    return model, best_loss
