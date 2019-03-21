@@ -3,7 +3,8 @@ import numpy as np
 from keras import losses
 from keras import backend as K
 from keras import initializers
-from keras.layers import Input, Dense, LSTM, TimeDistributed, Lambda, concatenate, RepeatVector, Flatten
+from keras.layers import Input, Dense, LSTM, TimeDistributed
+from keras.layers import Lambda, concatenate, RepeatVector, Flatten
 from keras.models import Model
 
 def generate_sample(dec_model, w_enc_model, z_enc_model, x_seed, nsteps, use_x_prev, w_val=None, do_reset=True, seq_length=None, w_sample=False, w_discrete=False):

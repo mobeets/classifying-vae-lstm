@@ -1,9 +1,12 @@
 import argparse
 import numpy as np
 from keras.utils import to_categorical
-from utils.pianoroll import PianoData
-from utils.midi_utils import write_sample
-from model import load_model, generate_sample, make_decoder, make_w_encoder, make_z_encoder, sample_z
+
+from ..utils.pianoroll import PianoData
+from ..utils.midi_utils import write_sample
+
+from .model import load_model, generate_sample, make_decoder
+from .model import make_w_encoder, make_z_encoder, sample_z
 
 """
 Code to load pianoroll data (.pickle)

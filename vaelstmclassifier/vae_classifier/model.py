@@ -1,6 +1,7 @@
 import json
 import numpy as np
 import scipy.stats
+
 from keras.layers import Input, Dense, Lambda, Reshape, concatenate
 from keras.models import Model
 from keras import backend as K

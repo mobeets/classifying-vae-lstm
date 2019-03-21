@@ -2,9 +2,11 @@ import os.path
 import argparse
 import numpy as np
 from keras.utils import to_categorical
-from utils.pianoroll import PianoData
-from utils.midi_utils import write_sample
-from model import load_model, generate_sample, make_decoder, make_w_encoder, make_z_encoder
+
+from ..utils.pianoroll import PianoData
+from ..utils.midi_utils import write_sample
+from .model import load_model, generate_sample, make_decoder
+from .model import make_w_encoder, make_z_encoder
 
 def gen_samples(P, dec_model, w_enc_model, z_enc_model, args, margs):
     key_map = {v: k for k, v in P.key_map.iteritems()}
