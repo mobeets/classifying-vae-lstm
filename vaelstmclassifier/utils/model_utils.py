@@ -3,6 +3,7 @@ import os.path
 import numpy as np
 from keras import losses
 from keras import backend as K
+
 from keras.callbacks import TensorBoard, ModelCheckpoint
 from keras.callbacks import EarlyStopping, Callback
 
@@ -69,9 +70,9 @@ class EarlyStoppingAfterEpoch(Callback):
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
-
+        
         assert(mode in ['auto', 'min', 'max'])
-
+        
         if mode == 'min':
             self.monitor_op = np.less
         elif mode == 'max':
