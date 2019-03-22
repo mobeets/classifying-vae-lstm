@@ -5,14 +5,14 @@ from keras.utils import to_categorical
 from ..utils.pianoroll import PianoData
 from ..utils.midi_utils import write_sample
 
-from .model import load_model, generate_sample, make_decoder
-from .model import make_w_encoder, make_z_encoder, sample_z
+from .model import VAEClassifier
 
 """
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
 
+'''
 def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
     # generate and write sample
     seed_ind = np.random.choice(list(range(len(P.x_test))))
@@ -27,24 +27,30 @@ def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
     print('[INFO] Storing New MIDI file in {}/{}.mid'.format(
                                 args.sample_dir, args.run_name))
     write_sample(sample, args.sample_dir, args.run_name, True)
-
+'''
 def sample(args):
     # load models
-    train_model, enc_model, margs = load_model(args.model_file, no_x_prev=args.no_x_prev)
-    w_enc_model = make_w_encoder(train_model, margs['original_dim'])
-    z_enc_model = make_z_encoder(train_model, margs['original_dim'], margs['n_classes'], (margs['intermediate_dim'], margs['latent_dim']))
-    dec_model = make_decoder(train_model, (margs['intermediate_dim'], margs['latent_dim']), margs['n_classes'], use_x_prev=margs['use_x_prev'])
-
+    vae_clf = VAEClassifier(batch_size = args.batch_size, 
+                         original_dim = args.original_dim, 
+                         vae_dims = vae_dims,
+                         classifier_dims = classifier_dims, 
+                         optimizer = args.optimizer,
+                         clf_weight = args.clf_weight, 
+                         vae_kl_weight = vae_kl_weight, 
+                         use_prev_input = args.use_prev_input,
+                         clf_kl_weight = clf_kl_weight)#,
+                         # clf_log_var_prior = args.clf_log_var_prior
+    
+    vae_clf.load_model(args.model_file, no_x_prev = args.no_x_prev)
+    
     # load data
-    P = PianoData(args.train_file,
-        batch_size=1,
-        seq_length=args.t,
-        squeeze_x=True)
+    P = PianoData(args.train_file, batch_size=1, 
+                    seq_length=args.t, squeeze_x=True)
 
     basenm = args.run_name
     for i in range(args.n):
         args.run_name = basenm + '_' + str(i)
-        make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs)
+        self.make_sample(P, args)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
