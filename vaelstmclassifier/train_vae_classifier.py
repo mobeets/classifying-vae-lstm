@@ -1,7 +1,5 @@
 import argparse
-
 from vaelstmclassifier.vae_classifier import train
-
 vae_classifier_train = train.train # rename
 
 if __name__ == '__main__':
@@ -52,4 +50,6 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    vae_classifier_train(args)
+    vae_clf, best_loss, history = vae_classifier_train(args)
+
+    print('\n\n[INFO] The Best Loss: {}'.format(best_loss))
