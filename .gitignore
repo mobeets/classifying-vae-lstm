@@ -5,3 +5,8 @@ data/models/*
 !data/models/.gitkeep
 
 *.mid
+build
+dist
+*egg*
+*broken*
+*log*
