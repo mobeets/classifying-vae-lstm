@@ -150,7 +150,7 @@ def get_callbacks(args, patience = 10, min_epoch = 0,
     # prepare to save model checkpoints
     if do_chckpt:
         chkpt_filename = os.path.join(args.model_dir, args.run_name + '.h5')
-            
+        
         callbacks.append(ModelCheckpointAfterEpoch(chkpt_filename, 
                                             min_epoch = min_epoch,
                                             monitor = 'val_loss', 

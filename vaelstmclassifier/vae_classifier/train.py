@@ -43,7 +43,8 @@ def train(args):
 
     args.run_name = args.run_name + str(int(time()))
     callbacks = get_callbacks(args, patience=args.patience, 
-        min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
+                    min_epoch = max(args.kl_anneal, args.w_kl_anneal)+1, 
+                    do_log = args.do_log, do_chckpt = args.do_chckpt)
     if args.kl_anneal > 0:
         assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
         vae_kl_weight = K.variable(value=0.1)

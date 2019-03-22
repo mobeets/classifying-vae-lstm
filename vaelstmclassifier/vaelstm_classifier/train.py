@@ -31,7 +31,8 @@ def train(args):
                 "Can't use --predict_next if using --use_x_prev"
 
     callbacks = get_callbacks(args, patience=args.patience, 
-        min_epoch=max(args.kl_anneal, args.w_kl_anneal)+1, do_log=args.do_log)
+                    min_epoch = max(args.kl_anneal, args.w_kl_anneal)+1, 
+                    do_log = args.do_log, do_chckpt = args.do_chckpt)
     if args.kl_anneal > 0:
         assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
         kl_weight = K.variable(value=0.1)
@@ -100,6 +101,8 @@ if __name__ == '__main__':
                 help="use x_t to 'autoencode' x_{t+1}")
     parser.add_argument("--do_log", action="store_true", 
                 help="save log files")
+    parser.add_argument("--do_chckpt", action="store_true",
+                help='save model checkpoints')
     parser.add_argument("--w_log_var_prior", type=float, default=0.0, 
                 help="log variance prior on w")
     parser.add_argument("--kl_anneal", type=int, default=0, 

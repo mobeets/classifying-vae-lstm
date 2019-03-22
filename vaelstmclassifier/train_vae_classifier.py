@@ -1,7 +1,8 @@
 import argparse
 
-from vaelstmclassifier.vae_classifier.train \
-        import train as vae_classifier_train
+from vaelstmclassifier.vae_classifier import train
+
+vae_classifier_train = train.train # rename
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -25,11 +26,12 @@ if __name__ == '__main__':
                 help='relative weight on classifying key')
     parser.add_argument('--clf_log_var_prior', type=float, default=0.0,
                 help='w log var prior')
-    parser.add_argument('--intermediate_class_dim',
-                type=int, default=88,
+    parser.add_argument('--intermediate_class_dim', type=int, default=88,
                 help='intermediate dims for classes')
     parser.add_argument("--do_log", action="store_true", 
                 help="save log files")
+    parser.add_argument("--do_chckpt", actiona="store_true",
+                help="save model checkpoints")
     parser.add_argument("--predict_next", action="store_true", 
                 help="use x_t to 'autoencode' x_{t+1}")
     parser.add_argument("--use_prev_input", action="store_true",
@@ -42,11 +44,12 @@ if __name__ == '__main__':
                 help="number of epochs before w's kl loss term is 1.0")
     parser.add_argument('--log_dir', type=str, default='data/logs',
                 help='basedir for saving log files')
-    parser.add_argument('--model_dir', type=str,
-                default='data/models',
+    parser.add_argument('--model_dir', type=str, default='data/models',
                 help='basedir for saving model weights')    
     parser.add_argument('--train_file', type=str,
                 default='data/input/JSB Chorales_Cs.pickle',
                 help='file of training data (.pickle)')
+    
     args = parser.parse_args()
+    
     vae_classifier_train(args)
