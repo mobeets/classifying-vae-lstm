@@ -75,15 +75,14 @@ def train(args):
                          clf_weight = args.clf_weight, 
                          vae_kl_weight = vae_kl_weight, 
                          use_prev_input = args.use_prev_input,
-                         clf_kl_weight = clf_kl_weight)#, 
-                         # clf_log_var_prior = args.clf_log_var_prior)
-
+                         clf_kl_weight = clf_kl_weight)
+    
     vae_clf.get_model()
     
     args.optimizer = 'adam-wn' if was_adam_wn else args.optimizer
-
+    
     save_model_in_pieces(vae_clf.model, args)
-
+    
     if args.use_prev_input:
         vae_train = [P.y_train, P.x_train]
         vae_features_val = [P.y_valid, P.x_valid]
@@ -96,7 +95,7 @@ def train(args):
     vae_labels_val = [P.y_valid,clf_validation, clf_validation,P.y_valid]
     validation_data = (vae_features_val, vae_labels_val)
     train_labels = [P.y_train, clf_train, clf_train, P.y_train]
-
+    
     history = vae_clf.model.fit(vae_train, train_labels,
                                 shuffle = True,
                                 epochs = args.num_epochs,

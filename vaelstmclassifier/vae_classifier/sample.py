@@ -1,17 +1,19 @@
 import argparse
 import numpy as np
-from keras.utils import to_categorical
+
+from collections import namedtuple
+from json import load as json_load
 
 from ..utils.pianoroll import PianoData
 from ..utils.midi_utils import write_sample
 
+# from .model import load_model, generate_sample, make_decoder
+# from .model import make_w_encoder, make_z_encoder, sample_z
 from .model import VAEClassifier
-
 """
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
-
 '''
 def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
     # generate and write sample
@@ -29,55 +31,29 @@ def make_sample(P, dec_model, w_enc_model, z_enc_model, args, margs):
     write_sample(sample, args.sample_dir, args.run_name, True)
 '''
 def sample(args):
-    # load models
-    vae_clf = VAEClassifier(batch_size = args.batch_size, 
-                         original_dim = args.original_dim, 
-                         vae_dims = vae_dims,
-                         classifier_dims = classifier_dims, 
-                         optimizer = args.optimizer,
-                         clf_weight = args.clf_weight, 
-                         vae_kl_weight = vae_kl_weight, 
-                         use_prev_input = args.use_prev_input,
-                         clf_kl_weight = clf_kl_weight)#,
-                         # clf_log_var_prior = args.clf_log_var_prior
+    json_input = json_load(open(args.model_file.replace('.h5', '.json')))
     
-    vae_clf.load_model(args.model_file, no_x_prev = args.no_x_prev)
+    json_converter = namedtuple('json_converter', json_input.keys())
+    margs = json_converter(**json_input)
+
+    vae_dims = (margs.intermediate_dim, margs.latent_dim)
+    classifier_dims = (margs.intermediate_class_dim, margs.n_classes)
+    
+    vae_clf = VAEClassifier(batch_size = margs.batch_size,
+                            original_dim = margs.original_dim, 
+                            vae_dims = vae_dims,
+                            classifier_dims = classifier_dims, 
+                            optimizer = margs.optimizer.replace('-wn',''),
+                            clf_weight = margs.clf_weight, 
+                            use_prev_input = margs.use_prev_input)
+    
+    vae_clf.get_model()
+    vae_clf.model.load_weights(args.model_file)
     
     # load data
-    P = PianoData(args.train_file, batch_size=1, 
-                    seq_length=args.t, squeeze_x=True)
-
+    P = PianoData(args.train_file, seq_length=args.t, squeeze_x=True)
+    
     basenm = args.run_name
     for i in range(args.n):
         args.run_name = basenm + '_' + str(i)
-        self.make_sample(P, args)
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('run_name', type=str,
-                        help='tag for current run')
-    parser.add_argument("-n", type=int, default=1,
-                        help="number of samples")
-    parser.add_argument("--use_z_prior", action="store_true", 
-                        help="sample z from standard normal at each timestep")
-    parser.add_argument('-t', type=int, default=32,
-                        help='number of timesteps per sample')
-    parser.add_argument("--infer_w", action="store_true", 
-                        help="infer w when generating")
-    parser.add_argument("--no_x_prev", action="store_true", 
-                        help="override use_x_prev")
-    parser.add_argument('--sample_dir', type=str,
-                        default='../data/samples',
-                        help='basedir for saving output midi files')
-    parser.add_argument('--model_dir', type=str,
-                        default='../data/models',
-                        help='basedir for saving model weights')
-    parser.add_argument('-i', '--model_file', type=str, default='',
-                        help='preload model weights (no training)')
-    parser.add_argument('--train_file', type=str,
-                        default='../data/input/JSB Chorales_Cs.pickle',
-                        help='file of training data (.pickle)')
-    args = parser.parse_args()
-    sample(args)
-    # $ brew install timidity
-    # $ timidity filename.mid
+        vae_clf.make_sample(P, args)
