@@ -69,6 +69,7 @@ class EarlyStoppingAfterEpoch(Callback):
         self.min_delta = min_delta
         self.wait = 0
         self.stopped_epoch = 0
+
         assert(mode in ['auto', 'min', 'max'])
 
         if mode == 'min':
@@ -141,22 +142,31 @@ class ModelCheckpointAfterEpoch(Callback):
             else:
                 self.model.save(filepath, overwrite=True)
 
-def get_callbacks(args, patience=5, min_epoch=0, do_log=False):
+def get_callbacks(args, patience = 10, min_epoch = 0, 
+                        do_log = False, do_chckpt = False):
+    
+    callbacks = []
+
     # prepare to save model checkpoints
-    chkpt_filename = os.path.join(args.model_dir, args.run_name + '.h5')
-    checkpt = ModelCheckpointAfterEpoch(chkpt_filename, min_epoch=min_epoch,
-        monitor='val_loss', save_weights_only=True, save_best_only=True)
-    # checkpt = ModelCheckpoint(chkpt_filename, monitor='val_loss', save_weights_only=True, save_best_only=True)
-    callbacks = [checkpt]
+    if do_chckpt:
+        chkpt_filename = os.path.join(args.model_dir, args.run_name + '.h5')
+            
+        callbacks.append(ModelCheckpointAfterEpoch(chkpt_filename, 
+                                            min_epoch = min_epoch,
+                                            monitor = 'val_loss', 
+                                            save_weights_only = True, 
+                                            save_best_only = True))
+    
     if do_log:
-        logging = TensorBoard(log_dir=os.path.join(args.log_dir, args.run_name))
-        callbacks.append(logging)
+        log_dir = os.path.join(args.log_dir,args.run_name)
+        callbacks.append(TensorBoard(log_dir = log_dir))
+    
     if patience > 0:
-        early_stop = EarlyStoppingAfterEpoch(monitor='val_loss',
-            min_epoch=min_epoch, patience=patience, verbose=0)
-        callbacks.append(early_stop)
-        # early_stop = EarlyStopping(monitor='val_loss', patience=patience, verbose=0)
-        callbacks.append(early_stop)
+        callbacks.append(EarlyStoppingAfterEpoch(monitor = 'val_loss',
+                                                 min_epoch = min_epoch, 
+                                                 patience = patience, 
+                                                 verbose = 0))
+    
     return callbacks
 
 def save_model_in_pieces(model, args):
