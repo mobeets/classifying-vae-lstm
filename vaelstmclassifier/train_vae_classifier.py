@@ -30,7 +30,7 @@ if __name__ == '__main__':
                 help='intermediate dims for classes')
     parser.add_argument("--do_log", action="store_true", 
                 help="save log files")
-    parser.add_argument("--do_chckpt", actiona="store_true",
+    parser.add_argument("--do_chckpt", action="store_true",
                 help="save model checkpoints")
     parser.add_argument("--predict_next", action="store_true", 
                 help="use x_t to 'autoencode' x_{t+1}")
