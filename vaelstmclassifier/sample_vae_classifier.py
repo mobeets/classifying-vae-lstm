@@ -8,7 +8,7 @@ if __name__ == '__main__':
                         help='tag for current run')
     parser.add_argument("-n", type=int, default=1,
                         help="number of samples")
-    parser.add_argument("--use_z_prior", action="store_true", 
+    parser.add_argument("--use_latent_prior", action="store_true", 
                         help="sample z from standard normal at each timestep")
     parser.add_argument('-t', type=int, default=32,
                         help='number of timesteps per sample')

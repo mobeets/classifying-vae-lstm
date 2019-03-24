@@ -20,25 +20,25 @@ def train(args):
         batch_size=args.batch_size,
         seq_length=args.seq_length,
         step_length=1,
-        return_y_next=args.predict_next or args.use_prev_input,
+        return_label_next=args.predict_next or args.use_prev_input,
         squeeze_x=True,
         squeeze_y=True)
     if args.seq_length > 1:
-        X = np.vstack([P.x_train, P.x_valid, P.x_test, 
-                        P.y_train, P.y_valid, P.y_test])
+        X = np.vstack([P.data_train, P.data_valid, P.data_test, 
+                        P.labels_train, P.labels_valid, P.labels_test])
         ix = X.sum(axis=0).sum(axis=0) > 0
-        P.x_train = P.x_train[:,:,ix].reshape((len(P.x_train), -1))
-        P.x_valid = P.x_valid[:,:,ix].reshape((len(P.x_valid), -1))
-        P.x_test = P.x_test[:,:,ix].reshape((len(P.x_test), -1))
-        P.y_train = P.y_train[:,:,ix].reshape((len(P.y_train), -1))
-        P.y_valid = P.y_valid[:,:,ix].reshape((len(P.y_valid), -1))
-        P.y_test = P.y_test[:,:,ix].reshape((len(P.y_test), -1))
+        P.data_train = P.data_train[:,:,ix].reshape((len(P.data_train), -1))
+        P.data_valid = P.data_valid[:,:,ix].reshape((len(P.data_valid), -1))
+        P.data_test = P.data_test[:,:,ix].reshape((len(P.data_test), -1))
+        P.labels_train = P.labels_train[:,:,ix].reshape((len(P.labels_train), -1))
+        P.labels_valid = P.labels_valid[:,:,ix].reshape((len(P.labels_valid), -1))
+        P.labels_test = P.labels_test[:,:,ix].reshape((len(P.labels_test), -1))
         args.original_dim = ix.sum()*args.seq_length
 
-    args.n_classes = len(np.unique(P.train_song_keys))
-    clf_train = to_categorical(P.train_song_keys, args.n_classes)
-    clf_validation = to_categorical(P.valid_song_keys, args.n_classes)
-    wte = to_categorical(P.test_song_keys, args.n_classes)
+    args.n_classes = len(np.unique(P.train_classes))
+    clf_train = to_categorical(P.train_classes, args.n_classes)
+    clf_validation = to_categorical(P.valid_classes, args.n_classes)
+    wte = to_categorical(P.test_classes, args.n_classes)
 
     assert(not (args.predict_next and args.use_prev_input)), \
             "Can't use --predict_next if using --use_prev_input"
@@ -84,17 +84,17 @@ def train(args):
     save_model_in_pieces(vae_clf.model, args)
     
     if args.use_prev_input:
-        vae_train = [P.y_train, P.x_train]
-        vae_features_val = [P.y_valid, P.x_valid]
+        vae_train = [P.labels_train, P.data_train]
+        vae_features_val = [P.labels_valid, P.data_valid]
     else:
-        vae_train = P.x_train
-        vae_features_val = P.x_valid
+        vae_train = P.data_train
+        vae_features_val = P.data_valid
 
-    data_based_init(vae_clf.model, P.x_train[:args.batch_size])
+    data_based_init(vae_clf.model, P.data_train[:args.batch_size])
 
-    vae_labels_val = [P.y_valid,clf_validation, clf_validation,P.y_valid]
+    vae_labels_val = [P.labels_valid,clf_validation, clf_validation,P.labels_valid]
     validation_data = (vae_features_val, vae_labels_val)
-    train_labels = [P.y_train, clf_train, clf_train, P.y_train]
+    train_labels = [P.labels_train, clf_train, clf_train, P.labels_train]
     
     history = vae_clf.model.fit(vae_train, train_labels,
                                 shuffle = True,

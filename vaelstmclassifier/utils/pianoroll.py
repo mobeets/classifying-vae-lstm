@@ -84,7 +84,7 @@ def songs_to_pianoroll(songs, seq_length, step_length, inner_fcn=song_to_pianoro
     return np.vstack(rolls), np.hstack(inds)
 
 class PianoData:
-    def __init__(self, train_file, batch_size=None, seq_length=1, step_length=1, return_y_next=True, return_y_hist=False, squeeze_x=True, squeeze_y=True, use_rel_major=True):
+    def __init__(self, train_file, batch_size=None, seq_length=1, step_length=1, return_label_next=True, return_label_hist=False, squeeze_x=True, squeeze_y=True, use_rel_major=True):
         """
         returns [n x seq_length x 88] where rows referring to the same song will overlap an amount determined by step_length
 
@@ -103,16 +103,16 @@ class PianoData:
         self.batch_size = batch_size # ensures that nsamples is divisible by this
         self.seq_length = seq_length # returns [n x seq_length x 88]
         self.step_length = step_length # controls overlap in rows of X
-        self.return_y_next = return_y_next # if True, y is next val of X; else y == X
-        self.return_y_hist = return_y_hist # if True, y is next val of X for each column of X; else y == [n x 1 x 88]
+        self.return_label_next = return_label_next # if True, y is next val of X; else y == X
+        self.return_label_hist = return_label_hist # if True, y is next val of X for each column of X; else y == [n x 1 x 88]
         self.squeeze_x = squeeze_x # remove singleton dimensions in X?
         self.squeeze_y = squeeze_y # remove singleton dimensions in y?
         self.use_rel_major = use_rel_major # minor keys get mapped to their relative major, e.g. 'a' -> 'C'
 
         # sequences with song indices
-        self.x_train, self.y_train, self.train_song_inds = self.make_xy(D['train'])
-        self.x_test, self.y_test, self.test_song_inds = self.make_xy(D['test'])
-        self.x_valid, self.y_valid, self.valid_song_inds = self.make_xy(D['valid'])
+        self.data_train, self.labels_train, self.train_song_inds = self.make_xy(D['train'])
+        self.data_test, self.labels_test, self.test_song_inds = self.make_xy(D['test'])
+        self.data_valid, self.labels_valid, self.valid_song_inds = self.make_xy(D['valid'])
 
         # # song index per sequence
         # self.train_song_inds = self.song_inds(D['train'])
@@ -127,28 +127,28 @@ class PianoData:
         if 'train_key' in D:
             D = self.update_keys(D)
             self.key_map = self.make_keymap(D)
-            self.train_song_keys = self.song_keys(D['train_key'], self.train_song_inds)
-            self.test_song_keys = self.song_keys(D['test_key'], self.test_song_inds)
-            self.valid_song_keys = self.song_keys(D['valid_key'], self.valid_song_inds)
+            self.train_classes = self.song_keys(D['train_key'], self.train_song_inds)
+            self.test_classes = self.song_keys(D['test_key'], self.test_song_inds)
+            self.valid_classes = self.song_keys(D['valid_key'], self.valid_song_inds)
 
     def make_xy(self, songs):
         inner_fcn = song_to_pianoroll
-        x_rolls, song_inds = songs_to_pianoroll(songs, self.seq_length + int(self.return_y_next), self.step_length, inner_fcn=inner_fcn)
-        x_rolls = self.adjust_for_batch_size(x_rolls)
+        data_rolls, song_inds = songs_to_pianoroll(songs, self.seq_length + int(self.return_label_next), self.step_length, inner_fcn=inner_fcn)
+        data_rolls = self.adjust_for_batch_size(data_rolls)
         song_inds = self.adjust_for_batch_size(song_inds)
-        if self.return_y_next: # make Y the last col of X
-            if self.return_y_hist:
-                y_rolls = x_rolls[:,1:,:]
+        if self.return_label_next: # make Y the last col of X
+            if self.return_label_hist:
+                labels_rolls = data_rolls[:,1:,:]
             else:
-                y_rolls = x_rolls[:,-1,:]
-            x_rolls = x_rolls[:,:-1,:]
+                labels_rolls = data_rolls[:,-1,:]
+            data_rolls = data_rolls[:,:-1,:]
         else:
-            y_rolls = x_rolls
+            labels_rolls = data_rolls
         if self.squeeze_x: # e.g., if X is [n x 1 x 88]
-            x_rolls = x_rolls.squeeze()
+            data_rolls = data_rolls.squeeze()
         if self.squeeze_y:
-            y_rolls = y_rolls.squeeze()
-        return x_rolls, y_rolls, song_inds
+            labels_rolls = labels_rolls.squeeze()
+        return data_rolls, labels_rolls, song_inds
 
     def song_modes(self, modes, song_inds):
         return np.array(modes)[song_inds.astype(int)]

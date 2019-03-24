@@ -42,7 +42,7 @@ def sample_classification(args, nsamps = 1, nrm_samp = False,
         clf_norm = np.dstack([clf_norm, np.zeros(clf_norm.shape[:-1]+ (1,))])
         return np.exp(clf_norm)/np.sum(np.exp(clf_norm), axis = -1)[:,:,None]
 
-def make_w_encoder(model, original_dim, batch_size = 1):
+def make_clf_encoder(model, original_dim, batch_size = 1):
     input_layer = Input(batch_shape = (batch_size, original_dim), 
                             name = 'input_layer')
 
@@ -81,22 +81,6 @@ class VAEClassifier(object):
         self.batch_size = batch_size
         self.use_prev_input = use_prev_input
     
-    def classifier_sampling(self, args):
-        """
-            sample from a logit-normal with params clf_mean and clf_log_var
-                (n.b. this is very similar to a logistic-normal distribution)
-        """
-        eps = K.random_normal(shape = (self.batch_size, self.clf_latent_dim), 
-                                mean = 0., stddev = 1.0)
-
-        clf_norm = self.clf_mean + K.exp(self.clf_log_var/2) * eps
-        
-        # need to add 0's so we can sum it all to 1
-        padding = K.tf.zeros(self.batch_size, 1)[:,None]
-        clf_norm = concatenate([clf_norm, padding], name='classifier_norm')
-
-        return K.exp(clf_norm)/K.sum(K.exp(clf_norm), axis = -1)[:,None]
-
     def build_classifier(self):
         clf_hidden_layer = Dense(self.clf_hidden_dim, 
                                     activation = self.hidden_activation, 
@@ -115,11 +99,19 @@ class VAEClassifier(object):
 
         self.clf_pred = clf_pred([self.clf_mean, self.clf_log_var])
 
-    def vae_sampling(self, args):
-        eps = K.random_normal(shape = (self.batch_size, self.vae_latent_dim), 
-                                mean = 0., stddev = 1.0)
-        
-        return self.vae_latent_mean + K.exp(self.vae_latent_log_var/2) * eps
+    def build_decoder(self):
+        vae_decoded_mean = Dense(self.original_dim, 
+                                 activation = self.output_activation, 
+                                 name = 'vae_decoded_mean')
+        if self.vae_hidden_dim > 0:
+            vae_dec_hid_layer = Dense(self.vae_hidden_dim, 
+                                      activation = self.hidden_activation, 
+                                      name = 'vae_dec_hid_layer')
+
+            self.vae_dec_hid_layer = vae_dec_hid_layer(self.pred_w_latent)
+            self.vae_decoded_mean = vae_decoded_mean(self.vae_dec_hid_layer)
+        else:
+            self.vae_decoded_mean = vae_decoded_mean(self.pred_w_latent)
 
     def build_latent_encoder(self):
         if self.vae_hidden_dim > 0:
@@ -149,39 +141,83 @@ class VAEClassifier(object):
                                             self.vae_latent_log_var], 
                                             axis = -1, 
                                             name = 'vae_latent_args')
-    def build_decoder(self):
-        vae_decoded_mean = Dense(self.original_dim, 
-                                 activation = self.output_activation, 
-                                 name = 'vae_decoded_mean')
-        if self.vae_hidden_dim > 0:
-            vae_dec_hid_layer = Dense(self.vae_hidden_dim, 
-                                      activation = self.hidden_activation, 
-                                      name = 'vae_dec_hid_layer')
-
-            self.vae_dec_hid_layer = vae_dec_hid_layer(self.pred_w_latent)
-            self.vae_decoded_mean = vae_decoded_mean(self.vae_dec_hid_layer)
-        else:
-            self.vae_decoded_mean = vae_decoded_mean(self.pred_w_latent)
-
-    def vae_loss(self, input_layer, vae_decoded_mean):
-        inp_vae_loss = binary_crossentropy(input_layer,vae_decoded_mean)
-        return self.original_dim * inp_vae_loss
-
-    def vae_kl_loss(self, ztrue, zpred):
-        Z_mean = self.vae_latent_args[:,:self.vae_latent_dim]
-        Z_log_var = self.vae_latent_args[:,self.vae_latent_dim:]
-        k_summer = 1 + Z_log_var - K.square(Z_mean) - K.exp(Z_log_var)
-        return -0.5*K.sum(k_summer, axis = -1)
-
-    def classifier_rec_loss(self, labels, preds):
-        rec_loss = categorical_crossentropy(labels, preds)
-        return self.clf_latent_dim * rec_loss
-
+    
     def classifier_kl_loss(self, labels, preds):
         vs = 1 - self.clf_log_var_prior + self.clf_log_var
         vs = vs - K.exp(self.clf_log_var)/K.exp(self.clf_log_var_prior)
         vs = vs - K.square(self.clf_mean)/K.exp(self.clf_log_var_prior)
         return -0.5*K.sum(vs, axis = -1)
+
+    def classifier_rec_loss(self, labels, preds):
+        rec_loss = categorical_crossentropy(labels, preds)
+        return self.clf_latent_dim * rec_loss
+
+    def classifier_sampling(self, args):
+        """
+            sample from a logit-normal with params clf_mean and clf_log_var
+                (n.b. this is very similar to a logistic-normal distribution)
+        """
+        eps = K.random_normal(shape = (self.batch_size, self.clf_latent_dim), 
+                                mean = 0., stddev = 1.0)
+
+        clf_norm = self.clf_mean + K.exp(self.clf_log_var/2) * eps
+        
+        # need to add 0's so we can sum it all to 1
+        padding = K.tf.zeros(self.batch_size, 1)[:,None]
+        clf_norm = concatenate([clf_norm, padding], name='classifier_norm')
+
+        return K.exp(clf_norm)/K.sum(K.exp(clf_norm), axis = -1)[:,None]
+
+    def generate_sample(self, data_seed, num_steps, clf_val = None, 
+            use_latent_prior=False, do_reset = True, clf_sample = False, 
+            use_prev_input = False):
+        """
+        for t = 1:num_steps
+            1. encode data_seed -> clf_mean, clf_log_var
+            2. sample clf_t ~ logit-N(clf_mean, exp(clf_log_var/2))
+            3. encode data_seed, clf_t -> vae_latent_mean, vae_latent_log_var
+            4. sample latent_t ~ N(vae_latent_mean, exp(vae_latent_log_var/2))
+            3. decode clf_t, latent_t -> clf_mean
+            4. sample data_t ~ Bern(clf_mean)
+            5. update data_seed := data_t
+        """
+        
+        # original_dim = data_seed.shape[0]
+        data_s = np.zeros([num_steps, self.original_dim])
+        data_prev = np.expand_dims(data_seed, axis=0)
+        data_prev_t = data_prev
+        if clf_val is None:
+            clf_t = sample_classification(clf_enc_model.predict(data_prev), 
+                                            add_noise = clf_sample)
+        else:
+            clf_t = clf_val
+
+        self.make_latent_encoder()
+        self.make_latent_decoder()
+
+        for t in range(num_steps):
+            vaelat_mean, vaelat_log_var = self.vae_enc_model.predict(
+                                                [data_prev, clf_t[:,None].T])
+            ''' If `use_latent_prior`, then set distribution to N(0,1); 
+            i.e. a standard normal by setting mod to 0
+            '''
+            mod = int(not use_latent_prior)
+            latent_t = self.sample_latent(mod*vaelat_mean, mod*vaelat_log_var)
+            
+            if use_prev_input or self.use_prev_input:
+                zc = [clf_t[:,None].T, latent_t, data_prev_t]
+            else:
+                zc = [clf_t[:,None].T, latent_t]
+            
+            vae_dec_mean = self.dec_model.predict(zc)
+            
+            data_t = self.sample_vae(vae_dec_mean)
+            
+            data_s[t] = data_t
+            data_prev_t = data_prev
+            data_prev = data_t
+        
+        return data_s
 
     def get_model(self, batch_size = None, original_dim = None, 
                   vae_dims = None, classifier_dims = None, 
@@ -268,6 +304,23 @@ class VAEClassifier(object):
 
                 metrics = {'classifier_prediction': 'accuracy'})
 
+    def vae_sampling(self, args):
+        eps = K.random_normal(shape = (self.batch_size, self.vae_latent_dim), 
+                                mean = 0., stddev = 1.0)
+        
+        return self.vae_latent_mean + K.exp(self.vae_latent_log_var/2) * eps
+
+    
+    def vae_loss(self, input_layer, vae_decoded_mean):
+        inp_vae_loss = binary_crossentropy(input_layer,vae_decoded_mean)
+        return self.original_dim * inp_vae_loss
+
+    def vae_kl_loss(self, ztrue, zpred):
+        Z_mean = self.vae_latent_args[:,:self.vae_latent_dim]
+        Z_log_var = self.vae_latent_args[:,self.vae_latent_dim:]
+        k_summer = 1 + Z_log_var - K.square(Z_mean) - K.exp(Z_log_var)
+        return -0.5*K.sum(k_summer, axis = -1)
+
     def load_model(self, model_file):
         """
         there's a currently bug in the way keras loads models 
@@ -303,10 +356,10 @@ class VAEClassifier(object):
             vae_latent_log_var= self.model.get_layer('vae_latent_log_var')
             vae_latent_log_var = vae_latent_log_var(input_w_pred)
         
-        z_enc_input = [input_layer, clf_layer]
-        z_enc_output = [vae_latent_mean, vae_latent_log_var]
+        latent_enc_input = [input_layer, clf_layer]
+        latent_enc_output = [vae_latent_mean, vae_latent_log_var]
 
-        self.vae_enc_model = Model(z_enc_input, z_enc_output)
+        self.vae_enc_model = Model(latent_enc_input, latent_enc_output)
 
     def make_latent_decoder(self, use_prev_input=False):
 
@@ -358,65 +411,17 @@ class VAEClassifier(object):
 
         return np.float32(rando <= clf_mean)
 
-    def generate_sample(self, x_seed, nsteps, w_val = None, use_z_prior=False, 
-                    do_reset = True, w_sample = False, use_prev_input = False):
-        """
-        for t = 1:nsteps
-            1. encode x_seed -> clf_mean, clf_log_var
-            2. sample w_t ~ logit-N(clf_mean, exp(clf_log_var/2))
-            3. encode x_seed, w_t -> vae_latent_mean, vae_latent_log_var
-            4. sample z_t ~ N(vae_latent_mean, exp(vae_latent_log_var/2))
-            3. decode w_t, z_t -> clf_mean
-            4. sample x_t ~ Bern(clf_mean)
-            5. update x_seed := x_t
-        """
-        
-        # original_dim = x_seed.shape[0]
-        Xs = np.zeros([nsteps, self.original_dim])
-        x_prev = np.expand_dims(x_seed, axis=0)
-        x_prev_t = x_prev
-        if w_val is None:
-            w_t = sample_classification(w_enc_model.predict(x_prev), 
-                                            add_noise = w_sample)
-        else:
-            w_t = w_val
-
-        self.make_latent_encoder()
-        self.make_latent_decoder()
-
-        for t in range(nsteps):
-            vaelat_mean, vaelat_log_var = self.vae_enc_model.predict(
-                                                        [x_prev, w_t[:,None].T])
-            ''' If `use_z_prior`, then set distribution to N(0,1); 
-            i.e. a standard normal by setting mod to 0
-            '''
-            mod = int(not use_z_prior)
-            z_t = self.sample_latent(mod*vaelat_mean, mod*vaelat_log_var)
-            
-            if use_prev_input or self.use_prev_input:
-                zc = [w_t[:,None].T, z_t, x_prev_t]
-            else:
-                zc = [w_t[:,None].T, z_t]
-            
-            vae_dec_mean = self.dec_model.predict(zc)
-            
-            x_t = self.sample_vae(vae_dec_mean)
-            
-            Xs[t] = x_t
-            x_prev_t = x_prev
-            x_prev = x_t
-        return Xs
-
     def make_sample(self, P, args):
         # generate and write sample
-        seed_ind = np.random.choice(list(range(len(P.x_test))))
-        x_seed = P.x_test[seed_ind][0]
-        seed_key_ind = P.test_song_keys[seed_ind]
-        w_val = None if args.infer_w else to_categorical(seed_key_ind, 
+        seed_ind = np.random.choice(list(range(len(P.data_test))))
+        data_seed = P.data_test[seed_ind][0]
+        # seed_key_ind = P.test_song_keys[seed_ind] # 
+        seed_class_ind = P.test_classes[seed_ind] # 
+        clf_val = None if args.infer_w else to_categorical(seed_class_ind, 
                                                          self.class_dim)
 
-        sample = self.generate_sample(x_seed, args.t,  w_val=w_val, 
-                                    use_z_prior=args.use_z_prior)
+        sample = self.generate_sample(data_seed, args.t, clf_val=clf_val, 
+                                    use_latent_prior=args.use_latent_prior)
 
         print('[INFO] Storing New MIDI file in {}/{}.mid'.format(
                                     args.sample_dir, args.run_name))
