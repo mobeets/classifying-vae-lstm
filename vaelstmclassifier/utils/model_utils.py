@@ -179,5 +179,5 @@ def save_model_in_pieces(model, args):
     outfile = os.path.join(args.model_dir, args.run_name + '.json')
     json.dump(vars(args), open(outfile, 'w'))
 
-def LL_frame(y, yhat):
-    return 88*losses.binary_crossentropy(y, yhat)
+def LL_frame(y, yhat):# y.size == 88?
+    return y.size*losses.binary_crossentropy(y, yhat)

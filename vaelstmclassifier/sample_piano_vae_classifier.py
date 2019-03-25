@@ -1,4 +1,6 @@
 import argparse
+
+from vaelstmclassifier.utils.pianoroll import PianoData
 from vaelstmclassifier.vae_classifier import sample
 vae_classifier_sample = sample.sample # rename
 
@@ -6,7 +8,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('run_name', type=str,
                         help='tag for current run')
-    parser.add_argument("-n", type=int, default=1,
+    parser.add_argument("-n", "--num_samples", type=int, default=1,
                         help="number of samples")
     parser.add_argument("--use_latent_prior", action="store_true", 
                         help="sample z from standard normal at each timestep")
@@ -30,7 +32,9 @@ if __name__ == '__main__':
     
     args = parser.parse_args()
     
-    vae_classifier_sample(args)
+    P = PianoData(args.train_file, seq_length=args.t, squeeze_x=True)
+
+    vae_classifier_sample(args, data_instance = P)
 
     # $ brew install timidity
     # $ timidity filename.mid

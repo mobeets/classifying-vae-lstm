@@ -74,7 +74,8 @@ def sliding_window(roll, seq_length, step_length=1):
         return np.array([])
     return np.dstack(rolls).swapaxes(0,2).swapaxes(1,2)
 
-def songs_to_pianoroll(songs, seq_length, step_length, inner_fcn=song_to_pianoroll):
+def songs_to_pianoroll(songs, seq_length, step_length, 
+                        inner_fcn = song_to_pianoroll):
     """
     songs = [song1, song2, ...]
     """
@@ -87,7 +88,7 @@ class PianoData:
     def __init__(self, train_file, batch_size=None, seq_length=1, step_length=1, return_label_next=True, return_label_hist=False, squeeze_x=True, squeeze_y=True, use_rel_major=True):
         """
         returns [n x seq_length x 88] where rows referring to the same song will overlap an amount determined by step_length
-
+        
         specifying batch_size will ensure that that mod(n, batch_size) == 0
         """
         try:

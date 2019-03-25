@@ -8,7 +8,6 @@ from keras import backend as K
 from keras.layers import Input, Dense, Lambda, Reshape, concatenate
 from keras.models import Model
 from keras.losses import binary_crossentropy, categorical_crossentropy
-from keras.utils import to_categorical
 
 from ..utils.midi_utils import write_sample
 
@@ -18,42 +17,6 @@ try:
 except: 
     # Python 3
    def range(tmp): return iter(range(tmp))
-
-'''
-def sample_classification(args, nsamps = 1, nrm_samp = False, 
-                                add_noise = True):
-    clf_mean, clf_log_var = args
-    if nsamps == 1:
-        eps = np.random.randn(*((1, clf_mean.flatten().shape[0])))
-    else:
-        eps = np.random.randn(*((nsamps,) + clf_mean.shape))
-    if eps.T.shape == clf_mean.shape:
-        eps = eps.T
-    if add_noise:
-        clf_norm = clf_mean + np.exp(clf_log_var/2)*eps
-    else:
-        clf_norm = clf_mean + 0*np.exp(clf_log_var/2)*eps
-    if nrm_samp:
-        return clf_norm
-    if nsamps == 1:
-        clf_norm = np.hstack([clf_norm, np.zeros((clf_norm.shape[0], 1))])
-        return np.exp(clf_norm)/np.sum(np.exp(clf_norm), axis = -1)[:,None]
-    else:
-        clf_norm = np.dstack([clf_norm, np.zeros(clf_norm.shape[:-1]+ (1,))])
-        return np.exp(clf_norm)/np.sum(np.exp(clf_norm), axis = -1)[:,:,None]
-
-def make_clf_encoder(model, original_dim, batch_size = 1):
-    input_layer = Input(batch_shape = (batch_size, original_dim), 
-                            name = 'input_layer')
-
-    # build label encoder
-    enc_hidden_layer = model.get_layer('enc_hidden_layer')(input_layer)
-    clf_mean = model.get_layer('clf_mean')(enc_hidden_layer)
-    clf_log_var = model.get_layer('clf_log_var')(enc_hidden_layer)
-
-    return Model(input_layer, [clf_mean, clf_log_var])
-
-'''
 
 '''HERE WHERE I STARTED'''
 def wrapped_partial(func, *args, **kwargs):
@@ -69,8 +32,8 @@ class VAEClassifier(object):
     def __init__(self, original_dim, vae_dims, classifier_dims, 
                     clf_latent_dim = None, batch_size = 128, 
                     vae_kl_weight = 1.0, clf_weight=1.0, 
-                    clf_kl_weight = 1.0, 
-                    optimizer = 'adam-wn', use_prev_input = False):
+                    clf_kl_weight = 1.0, optimizer = 'adam-wn', 
+                    use_prev_input = False):
 
         self.original_dim = original_dim
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
@@ -118,6 +81,7 @@ class VAEClassifier(object):
             vae_hidden_layer = Dense(self.vae_hidden_dim, 
                                      activation = self.hidden_activation, 
                                      name = 'vae_hidden_layer')
+
             self.vae_hidden_layer = vae_hidden_layer(self.input_w_pred)
             
             vae_latent_mean = Dense(self.vae_latent_dim,name='vae_latent_mean')
@@ -168,57 +132,6 @@ class VAEClassifier(object):
 
         return K.exp(clf_norm)/K.sum(K.exp(clf_norm), axis = -1)[:,None]
 
-    def generate_sample(self, data_seed, num_steps, clf_val = None, 
-            use_latent_prior=False, do_reset = True, clf_sample = False, 
-            use_prev_input = False):
-        """
-        for t = 1:num_steps
-            1. encode data_seed -> clf_mean, clf_log_var
-            2. sample clf_t ~ logit-N(clf_mean, exp(clf_log_var/2))
-            3. encode data_seed, clf_t -> vae_latent_mean, vae_latent_log_var
-            4. sample latent_t ~ N(vae_latent_mean, exp(vae_latent_log_var/2))
-            3. decode clf_t, latent_t -> clf_mean
-            4. sample data_t ~ Bern(clf_mean)
-            5. update data_seed := data_t
-        """
-        
-        # original_dim = data_seed.shape[0]
-        data_s = np.zeros([num_steps, self.original_dim])
-        data_prev = np.expand_dims(data_seed, axis=0)
-        data_prev_t = data_prev
-        if clf_val is None:
-            clf_t = sample_classification(clf_enc_model.predict(data_prev), 
-                                            add_noise = clf_sample)
-        else:
-            clf_t = clf_val
-
-        self.make_latent_encoder()
-        self.make_latent_decoder()
-
-        for t in range(num_steps):
-            vaelat_mean, vaelat_log_var = self.vae_enc_model.predict(
-                                                [data_prev, clf_t[:,None].T])
-            ''' If `use_latent_prior`, then set distribution to N(0,1); 
-            i.e. a standard normal by setting mod to 0
-            '''
-            mod = int(not use_latent_prior)
-            latent_t = self.sample_latent(mod*vaelat_mean, mod*vaelat_log_var)
-            
-            if use_prev_input or self.use_prev_input:
-                zc = [clf_t[:,None].T, latent_t, data_prev_t]
-            else:
-                zc = [clf_t[:,None].T, latent_t]
-            
-            vae_dec_mean = self.dec_model.predict(zc)
-            
-            data_t = self.sample_vae(vae_dec_mean)
-            
-            data_s[t] = data_t
-            data_prev_t = data_prev
-            data_prev = data_t
-        
-        return data_s
-
     def get_model(self, batch_size = None, original_dim = None, 
                   vae_dims = None, classifier_dims = None, 
                   clf_latent_dim = None, clf_weight = 1.0, vae_kl_weight = 1.0,
@@ -241,6 +154,7 @@ class VAEClassifier(object):
             self.clf_latent_dim = clf_latent_dim
 
         batch_shape = (self.batch_size, self.original_dim)
+        # batch_shape = (self.original_dim,)
         self.input_layer = Input(batch_shape = batch_shape, name='input_layer')
 
         if use_prev_input or self.use_prev_input:
@@ -249,6 +163,8 @@ class VAEClassifier(object):
 
         self.build_classifier()
         
+        print('self.input_layer',self.input_layer)
+        print('self.clf_pred',self.clf_pred)
         self.input_w_pred = concatenate([self.input_layer, self.clf_pred], 
                                             axis = -1,
                                             name = 'input_layer_w_clf_pred')
@@ -330,11 +246,29 @@ class VAEClassifier(object):
         self.get_model()
         self.model.load_weights(model_file)
 
-    def make_latent_encoder(self):
+    def make_clf_encoder(self):
+        batch_shape = (self.batch_size, self.original_dim)
+        # batch_shape = (self.original_dim,)
+        input_layer = Input(batch_shape = batch_shape, name = 'input_layer')
         
-        input_layer = Input(batch_shape = (self.batch_size, self.original_dim),
+        # build label encoder
+        enc_hidden_layer = self.model.get_layer('clf_hidden_layer')
+        enc_hidden_layer = enc_hidden_layer(input_layer)
+        
+        clf_mean = self.model.get_layer('clf_mean')(enc_hidden_layer)
+        clf_log_var = self.model.get_layer('clf_log_var')(enc_hidden_layer)
+
+        return Model(input_layer, [clf_mean, clf_log_var])
+
+    def make_latent_encoder(self):
+        orig_batch_shape = (self.batch_size, self.original_dim)
+        class_batch_shape = (self.batch_size, self.class_dim)
+        # orig_batch_shape = (self.original_dim,)
+        # class_batch_shape = (self.class_dim,)
+
+        input_layer = Input(batch_shape = orig_batch_shape, 
                             name = 'input_layer')
-        clf_layer = Input(batch_shape = (self.batch_size, self.class_dim), 
+        clf_layer = Input(batch_shape = class_batch_shape, 
                             name = 'classifier_layer')
 
         input_w_pred = concatenate([input_layer, clf_layer], axis = -1,
@@ -359,13 +293,16 @@ class VAEClassifier(object):
         latent_enc_input = [input_layer, clf_layer]
         latent_enc_output = [vae_latent_mean, vae_latent_log_var]
 
-        self.vae_enc_model = Model(latent_enc_input, latent_enc_output)
+        return Model(latent_enc_input, latent_enc_output)
 
     def make_latent_decoder(self, use_prev_input=False):
 
         input_batch_shape = (self.batch_size, self.original_dim)
         clf_batch_shape = (self.batch_size, self.class_dim)
         vae_batch_shape = (self.batch_size, self.vae_latent_dim)
+        # input_batch_shape = (self.original_dim,)
+        # clf_batch_shape = (self.class_dim,)
+        # vae_batch_shape = (self.vae_latent_dim,)
 
         clf_layer = Input(batch_shape=clf_batch_shape, name='classifier_layer')
         vae_latent_layer = Input(batch_shape = vae_batch_shape, 
@@ -397,7 +334,31 @@ class VAEClassifier(object):
         else:
             dec_input_stack = [clf_layer, vae_latent_layer]
 
-        self.dec_model = Model(dec_input_stack, vae_decoded_mean)
+        return Model(dec_input_stack, vae_decoded_mean)
+
+    def sample_classification(self, clf_mean, clf_log_var, nsamps=1, nrm_samp=False, add_noise=True):
+        
+        if nsamps == 1:
+            eps = np.random.randn(*((1, clf_mean.flatten().shape[0])))
+        else:
+            eps = np.random.randn(*((nsamps,) + clf_mean.shape))
+        if eps.T.shape == clf_mean.shape:
+            eps = eps.T
+        if add_noise:
+            clf_norm = clf_mean + np.exp(clf_log_var/2)*eps
+        else:
+            clf_norm = self.clf_mean + 0*np.exp(self.clf_log_var/2)*eps
+
+        if nrm_samp: return clf_norm
+
+        if nsamps == 1:
+            clf_norm = np.hstack([clf_norm, np.zeros((clf_norm.shape[0], 1))])
+            output = np.exp(clf_norm)/np.sum(np.exp(clf_norm), axis = -1)
+            return output[:,None]
+        else:
+            clf_norm = np.dstack([clf_norm,np.zeros(clf_norm.shape[:-1]+(1,))])
+            output = np.exp(clf_norm)/np.sum(np.exp(clf_norm), axis = -1)
+            return output[:,:,None]
 
     def sample_latent(self, Z_mean, Z_log_var, nsamps = 1):
         if nsamps == 1:
@@ -410,20 +371,3 @@ class VAEClassifier(object):
         rando = np.random.rand(len(clf_mean.squeeze()))
 
         return np.float32(rando <= clf_mean)
-
-    def make_sample(self, P, args):
-        # generate and write sample
-        seed_ind = np.random.choice(list(range(len(P.data_test))))
-        data_seed = P.data_test[seed_ind][0]
-        # seed_key_ind = P.test_song_keys[seed_ind] # 
-        seed_class_ind = P.test_classes[seed_ind] # 
-        clf_val = None if args.infer_w else to_categorical(seed_class_ind, 
-                                                         self.class_dim)
-
-        sample = self.generate_sample(data_seed, args.t, clf_val=clf_val, 
-                                    use_latent_prior=args.use_latent_prior)
-
-        print('[INFO] Storing New MIDI file in {}/{}.mid'.format(
-                                    args.sample_dir, args.run_name))
-
-        write_sample(sample, args.sample_dir, args.run_name, True)
