@@ -11,6 +11,88 @@ from vaelstmclassifier.utils.pianoroll import PianoData
 from vaelstmclassifier.vae_classifier.train import train_vae_classifier
 # vae_classifier_train = train.train_vae_classifier # rename
 
+from keras.datasets import mnist
+class MNISTClass(object):
+    def __init__(self, batch_size):
+        (x_train, y_train), (x_test, y_test) = mnist.load_data()
+        
+        self.batch_size = batch_size
+        
+        n_samples_test = x_test.shape[0]
+        n_samples_test = (n_samples_test // self.batch_size)*self.batch_size
+        
+        x_test = x_test[:n_samples_test]
+        y_test = y_test[:n_samples_test]
+
+        n_samples_train = x_train.shape[0]
+        n_samples_train = (n_samples_train // self.batch_size)*self.batch_size
+        
+        x_train = x_train[:n_samples_train]
+        y_train = y_train[:n_samples_train]
+
+        self.image_size = x_train.shape[1]
+        self.original_dim = image_size * image_size
+
+        x_train = reshape(x_train, [-1, self.original_dim])
+        x_test = reshape(x_test, [-1, self.original_dim])
+
+        x_train = x_train.astype('float32') / 255
+        x_test = x_test.astype('float32') / 255
+
+        """These are all of the necessary `data_instance` components"""
+        self.train_classes = y_train
+        self.valid_classes = y_test
+        self.test_classes = arange(0) # irrelevant(?)
+
+        self.data_train = x_train
+        self.data_valid = x_test
+        self.data_test = arange(0) # irrelevant(?)
+
+        self.labels_train = self.data_train
+        self.labels_valid = self.data_valid
+
+class ExoplanetData(object):
+    exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
+
+    def __init__(self, train_file, batch_size)
+
+        assert(os.path.exists(train_file))
+
+        exoplanet_filename = '{}/{}'.format(self.train_file,
+                                            self.exoplanet_filename)
+
+        input_specdb = joblib.load(exoplanet_filename)
+
+        x_train, y_train_raw = input_specdb[0]
+        x_test, y_test_raw = input_specdb[1]
+        y_train, y_test = input_specdb[2]
+
+        n_samples_test = y_test.shape[0]
+        n_samples_test = (n_samples_test // self.batch_size)*self.batch_size
+        
+        y_test = y_test[:n_samples_test]
+        x_test = x_test[:n_samples_test]
+
+        n_samples_train = y_train.shape[0]
+        n_samples_train = (n_samples_train // self.batch_size)*self.batch_size
+        
+        y_train = y_train[:n_samples_train]
+        x_train = x_train[:n_samples_train]
+
+        # these are our "labels"; the regresser will be conditioning on these
+        self.train_classes = x_train
+        self.valid_classes = x_test
+        self.test_classes = arange(0) # irrelevant(?)
+
+        # these are our "features"; the VAE will be reproducing these
+        self.data_train = y_train
+        self.data_valid = y_test
+        self.data_test = arange(0) # irrelevant(?)
+
+        # This is a 'copy' because the output must equal the input
+        self.labels_train = self.data_train
+        self.labels_valid = self.data_valid
+
 class BlankClass(object):
     def __init__(self):
         pass
@@ -80,7 +162,7 @@ if __name__ == '__main__':
         args.network_type = 'classification'
     if 'regr' in args.network_type.lower():
         args.network_type = 'regression'
-
+    
     if args.network_type is 'regression': args.n_classes = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
@@ -98,108 +180,19 @@ if __name__ == '__main__':
                       squeeze_x = not args.no_squeeze_x,
                       squeeze_y = not args.no_squeeze_y)
 
-        if args.seq_length > 1:
-            X = vstack([P.data_train, 
-                           P.data_valid, 
-                           P.data_test, 
-                           P.labels_train, 
-                           P.labels_valid, 
-                           P.labels_test
-                         ])
+        # Keep default unless modified inside `PianoData` instance
+        args.original_dim = P.original_dim or args.original_dim
 
-            idx = X.sum(axis=0).sum(axis=0) > 0
-
-            n_train = P.data_train.shape[0]
-            n_valid = P.data_valid.shape[0]
-            n_test = P.data_test.shape[0]
-
-            P.data_train = P.data_train[:,:,idx].reshape((n_train, -1))
-            P.data_valid = P.data_valid[:,:,idx].reshape((n_valid, -1))
-            P.data_test = P.data_test[:,:,idx].reshape((n_test, -1))
-
-            P.labels_train = P.labels_train[:,:,idx].reshape((n_train, -1))
-            P.labels_valid = P.labels_valid[:,:,idx].reshape((n_valid, -1))
-            P.labels_test = P.labels_test[:,:,idx].reshape((n_test, -1))
-
-            args.original_dim = idx.sum()*args.seq_length
-        
         data_instance = P
 
     elif 'mnist' in args.data_type.lower():
         args.data_type = 'MNIST'
-        from keras.datasets import mnist
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        
-        batch_size = args.batch_size
-        
-        n_samples_test = x_test.shape[0]
-        n_samples_test = (n_samples_test // batch_size)*batch_size
-        
-        x_test = x_test[:n_samples_test]
-        y_test = y_test[:n_samples_test]
+        data_instance = MNISTClass(batch_size = args.batch_size)
 
-        n_samples_train = x_train.shape[0]
-        n_samples_train = (n_samples_train // batch_size)*batch_size
-        
-        x_train = x_train[:n_samples_train]
-        y_train = y_train[:n_samples_train]
-
-        image_size = x_train.shape[1]
-        original_dim = image_size * image_size
-
-        x_train = reshape(x_train, [-1, original_dim])
-        x_test = reshape(x_test, [-1, original_dim])
-
-        x_train = x_train.astype('float32') / 255
-        x_test = x_test.astype('float32') / 255
-
-        """These are all of the necessary `data_instance` components"""
-        data_instance = BlankClass()
-
-        data_instance.train_classes = y_train
-        data_instance.valid_classes = y_test
-        data_instance.test_classes = arange(0) # irrelevant(?)
-
-        data_instance.data_train = x_train
-        data_instance.data_valid = x_test
-        data_instance.data_test = arange(0) # irrelevant(?)
-
-        data_instance.labels_train = data_instance.data_train
-        data_instance.labels_valid = data_instance.data_valid
     elif 'exoplanet' in args.data_type.lower():
-        assert(os.path.exists(args.train_file))
         args.data_type = 'ExoplanetSpectra'
-
-        exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
-        # exoplanet_features = 'exoplanet_spectral_features_labels.joblib.save'
-        # exoplanet_spectra = 'exoplanet_spectral_grid.joblib.save'
-
-        exoplanet_filename = '{}/{}'.format(args.train_file,exoplanet_filename)
-
-        input_specdb = joblib.load(exoplanet_filename)
-        # features, labels = joblib.load(exoplanet_features)
-        # spectral_grid = joblib.dump(exoplanet_spectra)
-
-        x_train, y_train_raw = input_specdb[0]
-        x_test, y_test_raw = input_specdb[1]
-        y_train, y_test = input_specdb[2]
-
-        """These are all of the necessary `data_instance` components"""
-        data_instance = BlankClass()
-
-        # these are our "labels"; the regresser will be conditioning on these
-        data_instance.train_classes = x_train
-        data_instance.valid_classes = x_test
-        data_instance.test_classes = arange(0) # irrelevant(?)
-
-        # these are our "features"; the VAE will be reproducing these
-        data_instance.data_train = y_train
-        data_instance.data_valid = y_test
-        data_instance.data_test = arange(0) # irrelevant(?)
-
-        # This is a 'copy' because the output must equal the input
-        data_instance.labels_train = data_instance.data_train
-        data_instance.labels_valid = data_instance.data_valid
+        data_instance = ExoplanetData(train_file = args.train_file,
+                                      batch_size = args.batch_size)
     else:
         raise ValueError("`data_type` must be in list {}".format(data_types))
 
@@ -234,5 +227,5 @@ if __name__ == '__main__':
     # """ Must set to None to blank out the model """
     # vae_model.model = None
     # vae_model.enc_model = None
-    
+
     joblib.dump({'best_loss':best_loss,'history':history}, joblib_save_loc)

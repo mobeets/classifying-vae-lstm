@@ -132,6 +132,35 @@ class PianoData:
             self.test_classes = self.song_keys(D['test_key'], self.test_song_inds)
             self.valid_classes = self.song_keys(D['valid_key'], self.valid_song_inds)
 
+        if seq_length > 1:
+            X = vstack([self.data_train, 
+                           self.data_valid, 
+                           self.data_test, 
+                           self.labels_train, 
+                           self.labels_valid, 
+                           self.labels_test
+                         ])
+
+            idx = X.sum(axis=0).sum(axis=0) > 0
+
+            n_train = self.data_train.shape[0]
+            n_valid = self.data_valid.shape[0]
+            n_test = self.data_test.shape[0]
+
+            self.data_train = self.data_train[:,:,idx].reshape((n_train, -1))
+            self.data_valid = self.data_valid[:,:,idx].reshape((n_valid, -1))
+            self.data_test = self.data_test[:,:,idx].reshape((n_test, -1))
+
+            self.labels_train = self.labels_train[:,:,idx]
+            self.labels_train = self.labels_train.reshape((n_train, -1))
+            self.labels_valid = self.labels_valid[:,:,idx]
+            self.labels_valid = self.labels_valid.reshape((n_valid, -1))
+            self.labels_test = self.labels_test[:,:,idx].reshape((n_test, -1))
+            
+            self.original_dim = idx.sum()*seq_length
+        else:
+            self.original_dim = None
+        
     def make_xy(self, songs):
         inner_fcn = song_to_pianoroll
         data_rolls, song_inds = songs_to_pianoroll(songs, self.seq_length + int(self.return_label_next), self.step_length, inner_fcn=inner_fcn)

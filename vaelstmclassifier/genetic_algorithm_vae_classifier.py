@@ -4,6 +4,22 @@ import matplotlib.pyplot as plt
 
 from vaelstmclassifier.vae_classifier.model import VAEClassifier
 
+import argparse
+import os
+
+from glob import glob
+from numpy import array, arange, vstack, reshape, loadtxt, zeros
+from sklearn.externals import joblib
+from time import time
+from tqdm import tqdm
+
+from vaelstmclassifier.vae_classifier.train import train_vae_classifier
+# vae_classifier_train = train.train_vae_classifier # rename
+
+class BlankClass(object):
+    def __init__(self):
+        pass
+
 def generate_random_chromosomes(size):
     nets = []
     for _ in range(size):
