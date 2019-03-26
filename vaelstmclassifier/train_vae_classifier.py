@@ -1,5 +1,8 @@
 import argparse
-from numpy import array, arange, vstack, reshape
+
+from glob import glob
+from numpy import array, arange, vstack, reshape, loadtxt, zeros
+from tqdm import tqdm
 
 from vaelstmclassifier.utils.pianoroll import PianoData
 from vaelstmclassifier.vae_classifier import train
@@ -149,15 +152,15 @@ if __name__ == '__main__':
     elif 'exoplanet' in args.data_type.lower():
         wavelengths = None
         waves_use = None
-        
+
         if verbose: print("[INFO] Load data from harddrive.")
-        
+
         spectral_filenames = glob(args.train_file + '/trans*')
         spectral_grid = {}
 
-        for fname in tqdm(filenames):
+        for fname in tqdm(spectral_filenames):
             key = '_'.join(fname.split('/')[-1].split('_')[1:7])
-            info_now = np.loadtxt(fname)
+            info_now = loadtxt(fname)
             if wavelengths is None: wavelengths = info_now[:,0]
             if waves_use is None: waves_use = wavelengths < 5.0
             spectral_grid[key] = info_now[:,1][waves_use]
@@ -165,18 +168,18 @@ if __name__ == '__main__':
         if verbose: print("[INFO] Assigning input values onto `labels` and `features`")
 
         n_waves = waves_use.sum()
-        labels = np.zeros((len(spectral_filenames), n_waves))
-        features = np.zeros((len(spectral_filenames), len(key.split('_'))))
+        labels = zeros((len(spectral_filenames), n_waves))
+        features = zeros((len(spectral_filenames), len(key.split('_'))))
 
         for k, (key,val) in enumerate(spectral_grid.items()): 
             labels[k] = val
-            features[k] = np.array(key.split('_')).astype(float)
+            features[k] = array(key.split('_')).astype(float)
 
         if verbose: print("[INFO] Computing train test split over indices "
                             "with shuffling")
 
         test_size = 0.2
-        idx_train, idx_test = train_test_split(np.arange(len(spectral_filenames)), 
+        idx_train, idx_test = train_test_split(arange(len(spectral_filenames)), 
                                                 test_size=test_size)
 
         if verbose: print("[INFO] Assigning x_train, y_train, x_test, y_test "
@@ -190,11 +193,19 @@ if __name__ == '__main__':
         y_test = labels[idx_test]
 
         if verbose: print('Computing Median Spectrum')
-        y_train_med = np.median(y_train, axis=0)
+        # y_train_med = median(y_train, axis=0)
 
         if verbose: print('Computing Median Average Deviation Spectrum')
-        y_train_mad = scale.mad(y_train, axis=0)
+        # y_train_mad = scale.mad(y_train, axis=0)
         min_train_mad = 1e-6
+
+        y_train_max = y_train.max(axis=0)
+        y_train_min = y_train.min(axis=0)
+
+        y_train_range = (y_train_max - y_train_min + min_train_mad)
+        
+        y_train_fit = (y_train - y_train_min) / y_train_range
+        y_test_fit = (y_test - y_train_min) / y_train_range
 
     else:
         raise ValueError("`data_type` must be in list {}".format(data_types))
