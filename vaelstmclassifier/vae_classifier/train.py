@@ -125,7 +125,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
     train_labels = [DI.labels_train, clf_train, clf_train, DI.labels_train]
     
     if clargs.debug: return 0,0,0
-
+    
     history = vae_clf.model.fit(vae_train, train_labels,
                                 shuffle = True,
                                 epochs = clargs.num_epochs,

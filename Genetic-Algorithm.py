@@ -2,6 +2,8 @@
 import random
 import matplotlib.pyplot as plt
 
+from vaelstmclassifier.vae_classifier.model import VAEClassifier
+
 def generate_random_chromosomes(size):
     nets = []
     for _ in range(size):
@@ -56,38 +58,64 @@ def mutate(child, prob):
     return child
 
 
-class Chromosome:
+class Chromosome(VAEClassifier):
     
     #[number of hidden layers in VAE,
     #   size of the first hidden layer in VAE,
     #   size of the latent layer,
     #   number of hidden layers in the DNN regressor,
     #   size of the first hidden layer in the DNN regressor]
-    params = ["num_h_VAE", "size_1st_VAE", "size_latent", "num_h_DNN", "size_1st_DNN"]
-    
-    #If any of the parameters is set to -1, a random number if chosen
-    def __init__(self, num_h_VAE=-1, size_1st_VAE=-1, size_latent=-1, num_h_DNN=-1, size_1st_DNN=-1):
-        if(num_h_VAE == -1):
-            num_h_VAE = random.randint(1, 10)
-        if(size_1st_VAE == -1):
-            size_1st_VAE = 2**random.randint(5, 15)
-        if(size_latent == -1):
-            size_latent = random.randint(1, 10)
-        if(num_h_DNN == -1):
-            num_h_DNN = random.randint(1, 10)
-        if(size_1st_DNN == -1):
-            size_1st_DNN = 2**random.randint(5, 15)
+    params = ["size_vae_hidden", "size_vae_latent", 
+                "size_dnn_latent", "size_dnn_hidden"]
 
-        self.params_dict = {"num_h_VAE": num_h_VAE,
-                           "size_1st_VAE": size_1st_VAE,
-                           "size_latent": size_latent,
-                           "num_h_DNN": num_h_DNN,
-                           "size_1st_DNN": size_1st_DNN}
-        self.neural_net = None
+    #If any of the parameters is set to -1, a random number if chosen
+    def __init__(self, original_dim, n_classes,
+                size_vae_hidden = None, size_vae_latent = None, 
+                size_dnn_hidden = None, size_dnn_latent = None,
+                batch_size = 128, vae_kl_weight = 1.0, clf_weight=1.0, 
+                clf_kl_weight = 1.0, optimizer = 'adam', 
+                use_prev_input = False, network_type = 'classification'):
+
+        # num_h_VAE=-1, num_h_DNN=-1, 
+        # if(num_h_VAE == -1):
+        #     num_h_VAE = random.randint(1, 10)
+        if size_vae_hidden is None:
+            size_vae_hidden = random.randint(5, 10)
+        if size_vae_latent is None:
+            size_vae_latent = random.randint(1, 10)
+        # if(num_h_DNN == -1):
+        #     num_h_DNN = random.randint(1, 10)
+        if size_dnn_latent is None:
+            size_dnn_latent = random.randint(1, 10)
+        if size_dnn_hidden is None:
+            size_dnn_hidden = random.randint(5, 10)
+
+        self.params_dict = {#"num_h_VAE": num_h_VAE,
+                           "size_vae_hidden": size_vae_hidden,
+                           "size_vae_latent": size_vae_latent,
+                           "size_dnn_latent":size_dnn_latent,
+                           #"num_h_DNN": num_h_DNN,
+                           "size_dnn_hidden": size_dnn_hidden}
+
+        self.network_type = network_type
+        self.original_dim = original_dim
+        
+        self.optimizer = optimizer
+        self.batch_size = batch_size
+        self.use_prev_input = use_prev_input
+        
+        self.class_dim = n_classes
+        self.clf_hidden_dim = 2**size_dnn_hidden
+        self.clf_latent_dim = 2**size_dnn_latent
+        self.vae_hidden_dim = 2**size_vae_hidden
+        self.vae_latent_dim = 2**size_vae_latent
+
+        self.get_model()
+        self.neural_net = self.model
         self.fitness = 0
 
     def train(self):
-        self.fitness = -self.params_dict["size_1st_VAE"]*self.params_dict["num_h_DNN"]*0.5-self.params_dict["size_1st_DNN"]*self.params_dict["num_h_VAE"]+self.params_dict["num_h_VAE"]*3+self.params_dict["size_1st_VAE"]*1.2+self.params_dict["size_latent"]+self.params_dict["num_h_DNN"]*5+self.params_dict["size_1st_DNN"]*2.5+random.uniform(0, 10)
+        self.fitness = -self.params_dict["size_1st_VAE"]*self.params_dict["num_h_DNN"]*0.5-self.params_dict["size_1st_DNN"]*self.params_dict["num_h_VAE"]+self.params_dict["num_h_VAE"]*3+self.params_dict["size_1st_VAE"]*1.2+self.params_dict["size_vae_latent"]+self.params_dict["num_h_DNN"]*5+self.params_dict["size_1st_DNN"]*2.5+random.uniform(0, 10)
         if(self.fitness < 0):
             self.fitness = 0
 

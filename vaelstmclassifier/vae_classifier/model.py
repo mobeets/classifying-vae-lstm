@@ -35,7 +35,7 @@ class VAEClassifier(object):
                     vae_kl_weight = 1.0, clf_weight=1.0, 
                     clf_kl_weight = 1.0, optimizer = 'adam-wn', 
                     use_prev_input = False, network_type = 'classification'):
-
+        
         self.network_type = network_type
         self.original_dim = original_dim
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
