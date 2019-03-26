@@ -234,6 +234,5 @@ if __name__ == '__main__':
     # """ Must set to None to blank out the model """
     # vae_model.model = None
     # vae_model.enc_model = None
-
-    # joblib.dump({'model':vae_model,'best_loss':best_loss,'history':history},
-    #             joblib_save_loc)
+    
+    joblib.dump({'best_loss':best_loss,'history':history}, joblib_save_loc)
