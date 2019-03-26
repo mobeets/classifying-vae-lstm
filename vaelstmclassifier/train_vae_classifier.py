@@ -2,6 +2,7 @@ import argparse
 
 from glob import glob
 from numpy import array, arange, vstack, reshape, loadtxt, zeros
+from time import time
 from tqdm import tqdm
 
 from vaelstmclassifier.utils.pianoroll import PianoData
@@ -26,26 +27,28 @@ if __name__ == '__main__':
                 help='number of epochs')
     parser.add_argument('--original_dim', type=int, default=0,
                 help='input dim')
-    parser.add_argument('--intermediate_dim', type=int, default=128,
+    parser.add_argument('--vae_hidden_dim', type=int, default=128,
                 help='intermediate dim')
-    parser.add_argument('--latent_dim', type=int, default=2,
+    parser.add_argument('--vae_latent_dim', type=int, default=2,
                 help='latent dim')
     parser.add_argument('--seq_length', type=int, default=1,
                 help='sequence length (concat)')
-    parser.add_argument('--clf_weight', type=float, default=1.0,
+    parser.add_argument('--predictor_weight', type=float, default=1.0,
                 help='relative weight on classifying key')
-    parser.add_argument('--clf_log_var_prior', type=float, default=0.0,
+    parser.add_argument('--prediction_log_var_prior', type=float, default=0.0,
                 help='w log var prior')
-    parser.add_argument('--intermediate_class_dim', type=int, default=128,
-                help='intermediate dims for classes')
+    parser.add_argument('--prediction_hidden_dim', type=int, default=128,
+                help='intermediate dims for class/regr prediction')
+    parser.add_argument('--prediction_latent_dim', type=int, default=0,
+                help='prediction dims for class/regr prediction')
     parser.add_argument("--do_log", action="store_true", 
                 help="save log files")
     parser.add_argument("--do_chckpt", action="store_true",
                 help="save model checkpoints")
     parser.add_argument("--predict_next", action="store_true", 
-                help="use x_t to 'autoencode' x_{t+1}")
+                help="use state_now to 'autoencode' state_next")
     parser.add_argument("--use_prev_input", action="store_true",
-                help="use x_{t-1} to help z_t decode x_t")
+                help="use state_prev to help latent_now decode state_now")
     parser.add_argument('--patience', type=int, default=5,
                 help='# of epochs, for early stopping')
     parser.add_argument("--kl_anneal", type=int, default=0, 
@@ -63,7 +66,7 @@ if __name__ == '__main__':
                 help='whether to squeeze the x dimension')
     parser.add_argument('--no_squeeze_y', action="store_true",
                 help='whether to squeeze the x dimension')
-    parser.add_argument('-sl','--step_length', type=int, default=1,
+    parser.add_argument('--step_length', type=int, default=1,
                 help="Length of the step for overlap in song(s)")
     parser.add_argument('--data_type', type=str, default='piano',
                 help="The type of data to fit ['piano', 'mnist']")
@@ -71,10 +74,14 @@ if __name__ == '__main__':
                 help="if debug; then stop before model.fit")
     args = parser.parse_args()
     
+    time_stamp = int(time())
+    args.run_name = '{}_{}'.format(args.run_name, time_stamp)
+
     if 'class' in args.network_type.lower():
         args.network_type = 'classification'
     if 'regr' in args.network_type.lower():
         args.network_type = 'regression'
+
     if args.network_type is 'regression': args.n_classes = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
@@ -160,7 +167,7 @@ if __name__ == '__main__':
         data_instance.labels_valid = data_instance.data_valid
     elif 'exoplanet' in args.data_type.lower():
         assert(os.path.exists(args.train_file))
-
+        
         exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
         # exoplanet_features = 'exoplanet_spectral_features_labels.joblib.save'
         # exoplanet_spectra = 'exoplanet_spectral_grid.joblib.save'
@@ -199,7 +206,12 @@ if __name__ == '__main__':
 
     if args.original_dim is 0: args.original_dim = n_features
     
-    vae_clf, best_loss, history = train_vae_classifier(clargs = args, 
+    vae_model, best_loss, history = train_vae_classifier(clargs = args, 
                                                 data_instance = data_instance)
 
     print('\n\n[INFO] The Best Loss: {}'.format(best_loss))
+    save_loc = '{}/{}_trained_model_output.joblib.save'.format(args.model_dir,
+                                                               args.run_name)
+
+    joblib.dump({'model':vae_model, 'best_loss':best_loss, 'history':history},
+                save_loc)

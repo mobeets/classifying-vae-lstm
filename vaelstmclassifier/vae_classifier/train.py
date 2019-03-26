@@ -6,7 +6,7 @@ import numpy as np
 
 from keras import backend as K
 from keras.utils import to_categorical
-from time import time
+# from time import time
 
 from ..utils.model_utils import get_callbacks, save_model_in_pieces
 from ..utils.model_utils import init_adam_wn, AnnealLossWeight
@@ -68,7 +68,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
     assert(not (clargs.predict_next and clargs.use_prev_input)), \
             "Can't use --predict_next if using --use_prev_input"
 
-    clargs.run_name = clargs.run_name + str(int(time()))
+    # clargs.run_name = clargs.run_name + str(int(time()))
     callbacks = get_callbacks(clargs, patience=clargs.patience, 
                     min_epoch = max(clargs.kl_anneal, clargs.w_kl_anneal)+1, 
                     do_log = clargs.do_log, do_chckpt = clargs.do_chckpt)
