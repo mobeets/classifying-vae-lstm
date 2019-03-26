@@ -17,7 +17,7 @@ class BlankClass(object):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('run_name', type=str,
+    parser.add_argument('run_name', type=str, # default='run_',
                 help='tag for current run')
     parser.add_argument('--network_type', type=str, default="classification",
                 help='select `classification` or `regression`')
@@ -78,6 +78,8 @@ if __name__ == '__main__':
     
     time_stamp = int(time())
     args.run_name = '{}_{}'.format(args.run_name, time_stamp)
+
+    print('\n\n**\tRun Name: {}\t**\n\n'.format(args.run_name))
 
     if 'class' in args.network_type.lower():
         args.network_type = 'classification'

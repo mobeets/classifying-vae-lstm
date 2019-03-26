@@ -90,8 +90,8 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
 
     clargs.optimizer, was_adam_wn = init_adam_wn(clargs.optimizer)
 
-    vae_dims = (clargs.intermediate_dim, clargs.latent_dim)
-    classifier_dims = (clargs.intermediate_class_dim, clargs.n_classes)
+    vae_dims = (clargs.vae_hidden_dim, clargs.vae_latent_dim)
+    classifier_dims = (clargs.prediction_hidden_dim, clargs.n_classes)
     
     vae_clf = VAEClassifier(network_type = clargs.network_type,
                             batch_size = clargs.batch_size, 
@@ -99,7 +99,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
                             vae_dims = vae_dims,
                             classifier_dims = classifier_dims, 
                             optimizer = clargs.optimizer,
-                            clf_weight = clargs.clf_weight, 
+                            clf_weight = clargs.predictor_weight, 
                             vae_kl_weight = vae_kl_weight, 
                             use_prev_input = clargs.use_prev_input,
                             clf_kl_weight = clf_kl_weight)
