@@ -1,7 +1,9 @@
 import argparse
+import os
 
 from glob import glob
 from numpy import array, arange, vstack, reshape, loadtxt, zeros
+from sklearn.externals import joblib
 from time import time
 from tqdm import tqdm
 
@@ -167,7 +169,7 @@ if __name__ == '__main__':
         data_instance.labels_valid = data_instance.data_valid
     elif 'exoplanet' in args.data_type.lower():
         assert(os.path.exists(args.train_file))
-        
+
         exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
         # exoplanet_features = 'exoplanet_spectral_features_labels.joblib.save'
         # exoplanet_spectra = 'exoplanet_spectral_grid.joblib.save'
