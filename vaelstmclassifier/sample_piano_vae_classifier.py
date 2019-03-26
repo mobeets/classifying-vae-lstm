@@ -1,6 +1,6 @@
 import argparse
 
-from vaelstmclassifier.utils.pianoroll import PianoData
+from vaelstmclassifier.utils.data_utils import PianoData
 from vaelstmclassifier.vae_classifier import sample
 vae_classifier_sample = sample.sample # rename
 

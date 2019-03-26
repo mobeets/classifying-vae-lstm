@@ -7,95 +7,8 @@ from sklearn.externals import joblib
 from time import time
 from tqdm import tqdm
 
-from vaelstmclassifier.utils.pianoroll import PianoData
 from vaelstmclassifier.vae_classifier.train import train_vae_classifier
 # vae_classifier_train = train.train_vae_classifier # rename
-
-from keras.datasets import mnist
-class MNISTClass(object):
-    def __init__(self, batch_size):
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        
-        self.batch_size = batch_size
-        
-        n_samples_test = x_test.shape[0]
-        n_samples_test = (n_samples_test // self.batch_size)*self.batch_size
-        
-        x_test = x_test[:n_samples_test]
-        y_test = y_test[:n_samples_test]
-
-        n_samples_train = x_train.shape[0]
-        n_samples_train = (n_samples_train // self.batch_size)*self.batch_size
-        
-        x_train = x_train[:n_samples_train]
-        y_train = y_train[:n_samples_train]
-
-        self.image_size = x_train.shape[1]
-        self.original_dim = image_size * image_size
-
-        x_train = reshape(x_train, [-1, self.original_dim])
-        x_test = reshape(x_test, [-1, self.original_dim])
-
-        x_train = x_train.astype('float32') / 255
-        x_test = x_test.astype('float32') / 255
-
-        """These are all of the necessary `data_instance` components"""
-        self.train_classes = y_train
-        self.valid_classes = y_test
-        self.test_classes = arange(0) # irrelevant(?)
-
-        self.data_train = x_train
-        self.data_valid = x_test
-        self.data_test = arange(0) # irrelevant(?)
-
-        self.labels_train = self.data_train
-        self.labels_valid = self.data_valid
-
-class ExoplanetData(object):
-    exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
-
-    def __init__(self, train_file, batch_size)
-
-        assert(os.path.exists(train_file))
-
-        exoplanet_filename = '{}/{}'.format(self.train_file,
-                                            self.exoplanet_filename)
-
-        input_specdb = joblib.load(exoplanet_filename)
-
-        x_train, y_train_raw = input_specdb[0]
-        x_test, y_test_raw = input_specdb[1]
-        y_train, y_test = input_specdb[2]
-
-        n_samples_test = y_test.shape[0]
-        n_samples_test = (n_samples_test // self.batch_size)*self.batch_size
-        
-        y_test = y_test[:n_samples_test]
-        x_test = x_test[:n_samples_test]
-
-        n_samples_train = y_train.shape[0]
-        n_samples_train = (n_samples_train // self.batch_size)*self.batch_size
-        
-        y_train = y_train[:n_samples_train]
-        x_train = x_train[:n_samples_train]
-
-        # these are our "labels"; the regresser will be conditioning on these
-        self.train_classes = x_train
-        self.valid_classes = x_test
-        self.test_classes = arange(0) # irrelevant(?)
-
-        # these are our "features"; the VAE will be reproducing these
-        self.data_train = y_train
-        self.data_valid = y_test
-        self.data_test = arange(0) # irrelevant(?)
-
-        # This is a 'copy' because the output must equal the input
-        self.labels_train = self.data_train
-        self.labels_valid = self.data_valid
-
-class BlankClass(object):
-    def __init__(self):
-        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -153,7 +66,7 @@ if __name__ == '__main__':
     parser.add_argument('--step_length', type=int, default=1,
                 help="Length of the step for overlap in song(s)")
     parser.add_argument('--data_type', type=str, default='piano',
-                help="The type of data to fit ['piano', 'mnist']")
+                help="The type of data to fit ['piano', 'mnist', 'exoplanet']")
     parser.add_argument('--debug', action="store_true",
                 help="if debug; then stop before model.fit")
     args = parser.parse_args()
@@ -162,12 +75,14 @@ if __name__ == '__main__':
         args.network_type = 'classification'
     if 'regr' in args.network_type.lower():
         args.network_type = 'regression'
-    
+
     if args.network_type is 'regression': args.n_classes = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
     
     if 'piano' in args.data_type.lower():
+        from vaelstmclassifier.utils.data_utils import PianoData
+
         args.data_type = 'PianoData'
 
         return_label_next = args.predict_next or args.use_prev_input
@@ -186,10 +101,14 @@ if __name__ == '__main__':
         data_instance = P
 
     elif 'mnist' in args.data_type.lower():
+        from vaelstmclassifier.utils.data_utils import MNISTData
+
         args.data_type = 'MNIST'
-        data_instance = MNISTClass(batch_size = args.batch_size)
+        data_instance = MNISTData(batch_size = args.batch_size)
 
     elif 'exoplanet' in args.data_type.lower():
+        from vaelstmclassifier.utils.data_utils import ExoplanetData
+
         args.data_type = 'ExoplanetSpectra'
         data_instance = ExoplanetData(train_file = args.train_file,
                                       batch_size = args.batch_size)
@@ -204,12 +123,12 @@ if __name__ == '__main__':
     time_stmp = int(time())
     args.run_name = '{}_{}_{}'.format(args.run_name, args.data_type, time_stmp)
 
-    print('\n\n\t** Run Base Name: {} **\n\n'.format(args.run_name))
+    print('\n\n[INFO] Run Base Name: {}\n'.format(args.run_name))
 
     vae_model, best_loss, history = train_vae_classifier(clargs = args, 
                                                 data_instance = data_instance)
 
-    print('\n\n[INFO] The Best Loss: {}'.format(best_loss))
+    print('\n\n[INFO] The Best Loss: {}\n'.format(best_loss))
     joblib_save_loc = '{}/{}_trained_model_output.joblib.save'.format(
                                                             args.model_dir,
                                                             args.run_name)

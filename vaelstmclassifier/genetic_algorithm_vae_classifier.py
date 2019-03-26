@@ -73,7 +73,6 @@ def mutate(child, prob):
             child.params_dict[param] += random.randint(-extra, extra)
     return child
 
-
 class Chromosome(VAEClassifier):
     
     #[number of hidden layers in VAE,
@@ -83,7 +82,7 @@ class Chromosome(VAEClassifier):
     #   size of the first hidden layer in the DNN regressor]
     params = ["size_vae_hidden", "size_vae_latent", 
                 "size_dnn_latent", "size_dnn_hidden"]
-
+    
     #If any of the parameters is set to -1, a random number if chosen
     def __init__(self, original_dim, n_classes,
                 size_vae_hidden = None, size_vae_latent = None, 
