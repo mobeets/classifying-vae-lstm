@@ -41,7 +41,7 @@ class VAEClassifier(object):
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
         self.clf_hidden_dim, self.class_dim = classifier_dims
         self.clf_latent_dim = clf_latent_dim or self.class_dim - 1
-
+        
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.use_prev_input = use_prev_input
