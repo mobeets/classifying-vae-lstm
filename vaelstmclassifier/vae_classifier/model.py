@@ -8,6 +8,7 @@ from keras import backend as K
 from keras.layers import Input, Dense, Lambda, Reshape, concatenate
 from keras.models import Model
 from keras.losses import binary_crossentropy, categorical_crossentropy
+from keras.losses import mean_squared_error
 
 from ..utils.midi_utils import write_sample
 
@@ -33,8 +34,9 @@ class VAEClassifier(object):
                     clf_latent_dim = None, batch_size = 128, 
                     vae_kl_weight = 1.0, clf_weight=1.0, 
                     clf_kl_weight = 1.0, optimizer = 'adam-wn', 
-                    use_prev_input = False):
+                    use_prev_input = False, network_type = 'classification'):
 
+        self.network_type = network_type
         self.original_dim = original_dim
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
         self.clf_hidden_dim, self.class_dim = classifier_dims
@@ -113,7 +115,10 @@ class VAEClassifier(object):
         return -0.5*K.sum(vs, axis = -1)
 
     def classifier_rec_loss(self, labels, preds):
-        rec_loss = categorical_crossentropy(labels, preds)
+        if self.network_type is 'classification':
+            rec_loss = categorical_crossentropy(labels, preds)
+        if self.network_type is 'regression':
+            rec_loss = mean_squared_error(labels, preds)
         return self.clf_latent_dim * rec_loss
 
     def classifier_sampling(self, args):
@@ -228,7 +233,10 @@ class VAEClassifier(object):
 
     
     def vae_loss(self, input_layer, vae_decoded_mean):
-        inp_vae_loss = binary_crossentropy(input_layer,vae_decoded_mean)
+        if self.network_type is 'classification':
+            inp_vae_loss = binary_crossentropy(input_layer,vae_decoded_mean)
+        if self.network_type is 'regression':
+            inp_vae_loss = mean_squared_error(input_layer,vae_decoded_mean)
         return self.original_dim * inp_vae_loss
 
     def vae_kl_loss(self, ztrue, zpred):
@@ -250,7 +258,7 @@ class VAEClassifier(object):
         batch_shape = (self.batch_size, self.original_dim)
         # batch_shape = (self.original_dim,)
         input_layer = Input(batch_shape = batch_shape, name = 'input_layer')
-        
+
         # build label encoder
         enc_hidden_layer = self.model.get_layer('clf_hidden_layer')
         enc_hidden_layer = enc_hidden_layer(input_layer)

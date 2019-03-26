@@ -5,13 +5,19 @@ from numpy import array, arange, vstack, reshape, loadtxt, zeros
 from tqdm import tqdm
 
 from vaelstmclassifier.utils.pianoroll import PianoData
-from vaelstmclassifier.vae_classifier import train
-vae_classifier_train = train.train_vae_classifier # rename
+from vaelstmclassifier.vae_classifier.train import train_vae_classifier
+# vae_classifier_train = train.train_vae_classifier # rename
+
+class BlankClass(object):
+    def __init__(self):
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('run_name', type=str,
                 help='tag for current run')
+    parser.add_argument('--network_type', type=str, default="classification",
+                help='select `classification` or `regression`')
     parser.add_argument('--batch_size', type=int, default=128,
                 help='batch size')
     parser.add_argument('--optimizer', type=str, default='adam-wn',
@@ -65,7 +71,13 @@ if __name__ == '__main__':
                 help="if debug; then stop before model.fit")
     args = parser.parse_args()
     
-    data_types = ['piano', 'mnist']
+    if 'class' in args.network_type.lower():
+        args.network_type = 'classification'
+    if 'regr' in args.network_type.lower():
+        args.network_type = 'regression'
+    if args.network_type is 'regression': args.n_classes = 1
+
+    data_types = ['piano', 'mnist', 'exoplanet']
 
     if 'piano' in args.data_type.lower():
 
@@ -133,10 +145,7 @@ if __name__ == '__main__':
         x_train = x_train.astype('float32') / 255
         x_test = x_test.astype('float32') / 255
 
-        class BlankClass(object):
-            def __init__(self):
-                pass
-
+        """These are all of the necessary `data_instance` components"""
         data_instance = BlankClass()
 
         data_instance.train_classes = y_train
@@ -150,63 +159,38 @@ if __name__ == '__main__':
         data_instance.labels_train = data_instance.data_train
         data_instance.labels_valid = data_instance.data_valid
     elif 'exoplanet' in args.data_type.lower():
-        wavelengths = None
-        waves_use = None
+        assert(os.path.exists(args.train_file))
 
-        if verbose: print("[INFO] Load data from harddrive.")
+        exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
+        # exoplanet_features = 'exoplanet_spectral_features_labels.joblib.save'
+        # exoplanet_spectra = 'exoplanet_spectral_grid.joblib.save'
 
-        spectral_filenames = glob(args.train_file + '/trans*')
-        spectral_grid = {}
+        exoplanet_filename = '{}/{}'.format(args.train_file,exoplanet_filename)
 
-        for fname in tqdm(spectral_filenames):
-            key = '_'.join(fname.split('/')[-1].split('_')[1:7])
-            info_now = loadtxt(fname)
-            if wavelengths is None: wavelengths = info_now[:,0]
-            if waves_use is None: waves_use = wavelengths < 5.0
-            spectral_grid[key] = info_now[:,1][waves_use]
+        input_specdb = joblib.load(exoplanet_filename)
+        # features, labels = joblib.load(exoplanet_features)
+        # spectral_grid = joblib.dump(exoplanet_spectra)
 
-        if verbose: print("[INFO] Assigning input values onto `labels` and `features`")
+        x_train, y_train_raw = input_specdb[0]
+        x_test, y_test_raw = input_specdb[1]
+        y_train, y_test = input_specdb[2]
 
-        n_waves = waves_use.sum()
-        labels = zeros((len(spectral_filenames), n_waves))
-        features = zeros((len(spectral_filenames), len(key.split('_'))))
+        """These are all of the necessary `data_instance` components"""
+        data_instance = BlankClass()
 
-        for k, (key,val) in enumerate(spectral_grid.items()): 
-            labels[k] = val
-            features[k] = array(key.split('_')).astype(float)
+        # these are our "labels"; the regresser will be conditioning on these
+        data_instance.train_classes = x_train
+        data_instance.valid_classes = x_test
+        data_instance.test_classes = arange(0) # irrelevant(?)
 
-        if verbose: print("[INFO] Computing train test split over indices "
-                            "with shuffling")
+        # these are our "features"; the VAE will be reproducing these
+        data_instance.data_train = y_train
+        data_instance.data_valid = y_test
+        data_instance.data_test = arange(0) # irrelevant(?)
 
-        test_size = 0.2
-        idx_train, idx_test = train_test_split(arange(len(spectral_filenames)), 
-                                                test_size=test_size)
-
-        if verbose: print("[INFO] Assigning x_train, y_train, x_test, y_test "
-                            "from `idx_train` and `idx_test`")
-
-        ''' Organize input data for autoencoder '''
-        x_train = features[idx_train]
-        y_train = labels[idx_train]
-
-        x_test = features[idx_test]
-        y_test = labels[idx_test]
-
-        if verbose: print('Computing Median Spectrum')
-        # y_train_med = median(y_train, axis=0)
-
-        if verbose: print('Computing Median Average Deviation Spectrum')
-        # y_train_mad = scale.mad(y_train, axis=0)
-        min_train_mad = 1e-6
-
-        y_train_max = y_train.max(axis=0)
-        y_train_min = y_train.min(axis=0)
-
-        y_train_range = (y_train_max - y_train_min + min_train_mad)
-        
-        y_train_fit = (y_train - y_train_min) / y_train_range
-        y_test_fit = (y_test - y_train_min) / y_train_range
-
+        # This is a 'copy' because the output must equal the input
+        data_instance.labels_train = data_instance.data_train
+        data_instance.labels_valid = data_instance.data_valid
     else:
         raise ValueError("`data_type` must be in list {}".format(data_types))
 
@@ -215,7 +199,7 @@ if __name__ == '__main__':
 
     if args.original_dim is 0: args.original_dim = n_features
     
-    vae_clf, best_loss, history = vae_classifier_train(clargs = args, 
+    vae_clf, best_loss, history = train_vae_classifier(clargs = args, 
                                                 data_instance = data_instance)
 
     print('\n\n[INFO] The Best Loss: {}'.format(best_loss))
