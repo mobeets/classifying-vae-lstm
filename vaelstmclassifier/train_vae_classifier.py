@@ -76,11 +76,6 @@ if __name__ == '__main__':
                 help="if debug; then stop before model.fit")
     args = parser.parse_args()
     
-    time_stamp = int(time())
-    args.run_name = '{}_{}'.format(args.run_name, time_stamp)
-
-    print('\n\n**\tRun Name: {}\t**\n\n'.format(args.run_name))
-
     if 'class' in args.network_type.lower():
         args.network_type = 'classification'
     if 'regr' in args.network_type.lower():
@@ -89,8 +84,9 @@ if __name__ == '__main__':
     if args.network_type is 'regression': args.n_classes = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
-
+    
     if 'piano' in args.data_type.lower():
+        args.data_type = 'PianoData'
 
         return_label_next = args.predict_next or args.use_prev_input
 
@@ -130,6 +126,7 @@ if __name__ == '__main__':
         data_instance = P
 
     elif 'mnist' in args.data_type.lower():
+        args.data_type = 'MNIST'
         from keras.datasets import mnist
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
         
@@ -171,6 +168,7 @@ if __name__ == '__main__':
         data_instance.labels_valid = data_instance.data_valid
     elif 'exoplanet' in args.data_type.lower():
         assert(os.path.exists(args.train_file))
+        args.data_type = 'ExoplanetSpectra'
 
         exoplanet_filename = 'exoplanet_spectral_database.joblib.save'
         # exoplanet_features = 'exoplanet_spectral_features_labels.joblib.save'
@@ -210,12 +208,32 @@ if __name__ == '__main__':
 
     if args.original_dim is 0: args.original_dim = n_features
     
+    time_stmp = int(time())
+    args.run_name = '{}_{}_{}'.format(args.run_name, args.data_type, time_stmp)
+
+    print('\n\n\t** Run Base Name: {} **\n\n'.format(args.run_name))
+
     vae_model, best_loss, history = train_vae_classifier(clargs = args, 
                                                 data_instance = data_instance)
 
     print('\n\n[INFO] The Best Loss: {}'.format(best_loss))
-    save_loc = '{}/{}_trained_model_output.joblib.save'.format(args.model_dir,
-                                                               args.run_name)
+    joblib_save_loc = '{}/{}_trained_model_output.joblib.save'.format(
+                                                            args.model_dir,
+                                                            args.run_name)
 
-    joblib.dump({'model':vae_model, 'best_loss':best_loss, 'history':history},
-                save_loc)
+    weights_save_loc = '{}/{}_trained_model_weights.save'.format(
+                                                            args.model_dir,
+                                                            args.run_name)
+    
+    model_save_loc = '{}/{}_trained_model_full.save'.format(args.model_dir,
+                                                            args.run_name)
+    
+    vae_model.model.save_weights(weights_save_loc, overwrite=True)
+    vae_model.model.save(model_save_loc, overwrite=True)
+    
+    # """ Must set to None to blank out the model """
+    # vae_model.model = None
+    # vae_model.enc_model = None
+
+    # joblib.dump({'model':vae_model,'best_loss':best_loss,'history':history},
+    #             joblib_save_loc)
