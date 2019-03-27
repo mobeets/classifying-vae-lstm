@@ -29,9 +29,9 @@ def wrapped_partial(func, *args, **kwargs):
     update_wrapper(partial_func, func)
     return partial_func
 
-class VAEClassifier(object):
+class VAEPredictor(object):
     def __init__(self, original_dim, vae_dims, predictor_dims, 
-                    prediction_latent_dim = None, batch_size = 128, 
+                    predictor_latent_dim = None, batch_size = 128, 
                     vae_kl_weight = 1.0, predictor_weight=1.0, 
                     predictor_kl_weight = 1.0, optimizer = 'adam-wn', 
                     use_prev_input = False, predictor_type = 'classification'):
@@ -40,29 +40,29 @@ class VAEClassifier(object):
         self.original_dim = original_dim
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
         self.predictor_hidden_dim, self.predictor_out_dim = predictor_dims
-        self.prediction_latent_dim = prediction_latent_dim or self.predictor_out_dim - 1
+        self.predictor_latent_dim = predictor_latent_dim or self.predictor_out_dim - 1
 
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.use_prev_input = use_prev_input
     
     def build_predictor(self):
-        predictor_hidden_layer = Dense(self.predictor_hidden_dim, 
+        prediction_hidden_layer = Dense(self.predictor_hidden_dim, 
                                     activation = self.hidden_activation, 
-                                    name = 'predictor_hidden_layer')
+                                    name = 'prediction_hidden_layer')
 
-        self.predictor_hidden_layer = predictor_hidden_layer(self.input_layer)
+        self.prediction_hidden_layer = prediction_hidden_layer(self.input_layer)
         
-        predictor_latent_mean = Dense(self.prediction_latent_dim, name = 'predictor_latent_mean')
-        self.predictor_latent_mean = predictor_latent_mean(self.predictor_hidden_layer)
+        prediction_latent_mean = Dense(self.predictor_latent_dim, name = 'prediction_latent_mean')
+        self.prediction_latent_mean = prediction_latent_mean(self.prediction_hidden_layer)
 
-        prediction_log_var = Dense(self.prediction_latent_dim, name = 'prediction_log_var')
-        self.prediction_log_var = prediction_log_var(self.predictor_hidden_layer)
+        prediction_log_var = Dense(self.predictor_latent_dim, name = 'prediction_log_var')
+        self.prediction_log_var = prediction_log_var(self.prediction_hidden_layer)
 
         prediction_latent_layer = Lambda(self.predictor_sampling, 
-                            name = 'predictor_prediction')
+                            name = 'prediction_latent_layer')
 
-        self.prediction_latent_layer = prediction_latent_layer([self.predictor_latent_mean, self.prediction_log_var])
+        self.prediction_latent_layer = prediction_latent_layer([self.prediction_latent_mean, self.prediction_log_var])
 
     def build_decoder(self):
         vae_decoded_mean = Dense(self.original_dim, 
@@ -111,7 +111,7 @@ class VAEClassifier(object):
     def predictor_kl_loss(self, labels, preds):
         vs = 1 - self.prediction_log_var_prior + self.prediction_log_var
         vs = vs - K.exp(self.prediction_log_var)/K.exp(self.prediction_log_var_prior)
-        vs = vs - K.square(self.predictor_latent_mean)/K.exp(self.prediction_log_var_prior)
+        vs = vs - K.square(self.prediction_latent_mean)/K.exp(self.prediction_log_var_prior)
         return -0.5*K.sum(vs, axis = -1)
 
     def predictor_rec_loss(self, labels, preds):
@@ -119,27 +119,32 @@ class VAEClassifier(object):
             rec_loss = categorical_crossentropy(labels, preds)
         if self.predictor_type is 'regression':
             rec_loss = mean_squared_error(labels, preds)
-        return self.prediction_latent_dim * rec_loss
+        return self.predictor_latent_dim * rec_loss
 
     def predictor_sampling(self, args):
         """
-            sample from a logit-normal with params predictor_latent_mean and prediction_log_var
+            sample from a logit-normal with params prediction_latent_mean and prediction_log_var
                 (n.b. this is very similar to a logistic-normal distribution)
         """
-        eps = K.random_normal(shape = (self.batch_size, self.prediction_latent_dim), 
+        eps = K.random_normal(shape = (self.batch_size, self.predictor_latent_dim), 
                                 mean = 0., stddev = 1.0)
-
-        predictor_norm = self.predictor_latent_mean + K.exp(self.prediction_log_var/2) * eps
+        print('eps',eps)
+        predictor_norm = self.prediction_latent_mean + K.exp(self.prediction_log_var/2) * eps
+        print('self.prediction_latent_mean',self.prediction_latent_mean)
+        print('self.prediction_log_var',self.prediction_log_var)
+        print('predictor_norm',predictor_norm)
         
         # need to add 0's so we can sum it all to 1
         padding = K.tf.zeros(self.batch_size, 1)[:,None]
+        print('padding',padding)
         predictor_norm = concatenate([predictor_norm, padding], name='predictor_norm')
-
+        print('predictor_norm', predictor_norm)
+        print('output',K.exp(predictor_norm)/K.sum(K.exp(predictor_norm), axis = -1)[:,None])
         return K.exp(predictor_norm)/K.sum(K.exp(predictor_norm), axis = -1)[:,None]
 
     def get_model(self, batch_size = None, original_dim = None, 
                   vae_dims = None, predictor_dims = None, 
-                  prediction_latent_dim = None, predictor_weight = 1.0, 
+                  predictor_latent_dim = None, predictor_weight = 1.0, 
                   vae_kl_weight = 1.0, use_prev_input = False, 
                   predictor_kl_weight = 1.0, prediction_log_var_prior = 0.0, 
                   hidden_activation = 'relu', output_activation = 'sigmoid'):
@@ -155,8 +160,8 @@ class VAEClassifier(object):
             self.predictor_hidden_dim, self.predictor_out_dim = predictor_dims
         
         '''FINDME: Why is this predictor_out_dim-1(??)'''
-        if prediction_latent_dim is not None:
-            self.prediction_latent_dim = prediction_latent_dim
+        if predictor_latent_dim is not None:
+            self.predictor_latent_dim = predictor_latent_dim
 
         batch_shape = (self.batch_size, self.original_dim)
         # batch_shape = (self.original_dim,)
@@ -191,7 +196,7 @@ class VAEClassifier(object):
         # Add some wiggle to the predictor predictions 
         #   to avoid division by zero
         prediction_latent_mod = Lambda(lambda tmp: tmp+1e-10, 
-                                name = 'predictor_prediction_mod')
+                                name = 'prediction_latent_mod')
 
         self.prediction_latent_mod = prediction_latent_mod(self.prediction_latent_layer)
         
@@ -199,12 +204,12 @@ class VAEClassifier(object):
             input_stack = [self.input_layer, self.prev_input_layer]
             out_stack = [self.vae_decoded_mean, self.prediction_latent_layer, 
                          self.prediction_latent_mod, self.vae_latent_args]
-            enc_stack = [self.vae_latent_mean, self.predictor_latent_mean]
+            enc_stack = [self.vae_latent_mean, self.prediction_latent_mean]
         else:
             input_stack = [self.input_layer]
             out_stack = [self.vae_decoded_mean, self.prediction_latent_layer, 
                          self.prediction_latent_mod, self.vae_latent_args]
-            enc_stack = [self.vae_latent_mean, self.predictor_latent_mean]
+            enc_stack = [self.vae_latent_mean, self.prediction_latent_mean]
 
         self.model = Model(input_stack, out_stack)
         self.enc_model = Model(input_stack, enc_stack)
@@ -213,13 +218,13 @@ class VAEClassifier(object):
                 optimizer = self.optimizer,
 
                 loss = {'vae_decoded_mean': self.vae_loss,
-                        'predictor_prediction': self.predictor_kl_loss,
-                        'predictor_prediction_mod': self.predictor_rec_loss,
+                        'prediction_latent_layer': self.predictor_kl_loss,
+                        'prediction_latent_mod': self.predictor_rec_loss,
                         'vae_latent_args': self.vae_kl_loss},
 
                 loss_weights = {'vae_decoded_mean': 1.0,
-                                'predictor_prediction': predictor_kl_weight,
-                                'predictor_prediction_mod':predictor_weight,
+                                'prediction_latent_layer': predictor_kl_weight,
+                                'prediction_latent_mod':predictor_weight,
                                 'vae_latent_args': vae_kl_weight},
 
                 metrics = {'predictor_prediction': 'accuracy'})
@@ -259,13 +264,13 @@ class VAEClassifier(object):
         input_layer = Input(batch_shape = batch_shape, name = 'input_layer')
 
         # build label encoder
-        enc_hidden_layer = self.model.get_layer('predictor_hidden_layer')
+        enc_hidden_layer = self.model.get_layer('prediction_hidden_layer')
         enc_hidden_layer = enc_hidden_layer(input_layer)
         
-        predictor_latent_mean = self.model.get_layer('predictor_latent_mean')(enc_hidden_layer)
+        prediction_latent_mean = self.model.get_layer('prediction_latent_mean')(enc_hidden_layer)
         prediction_log_var = self.model.get_layer('prediction_log_var')(enc_hidden_layer)
 
-        return Model(input_layer, [predictor_latent_mean, prediction_log_var])
+        return Model(input_layer, [prediction_latent_mean, prediction_log_var])
 
     def make_latent_encoder(self):
         orig_batch_shape = (self.batch_size, self.original_dim)
@@ -276,7 +281,7 @@ class VAEClassifier(object):
         input_layer = Input(batch_shape = orig_batch_shape, 
                             name = 'input_layer')
         prediction_input_layer = Input(batch_shape = predictor_batch_shape, 
-                            name = 'predictor_layer')
+                            name = 'prediction_input_layer')
 
         input_w_pred = concatenate([input_layer, prediction_input_layer], axis = -1,
                                     name = 'input_w_pred_layer')
@@ -343,18 +348,18 @@ class VAEClassifier(object):
 
         return Model(dec_input_stack, vae_decoded_mean)
 
-    def sample_prediction(self, predictor_latent_mean, prediction_log_var, nsamps=1, nrm_samp=False, add_noise=True):
+    def sample_prediction(self, prediction_latent_mean, prediction_log_var, nsamps=1, nrm_samp=False, add_noise=True):
         
         if nsamps == 1:
-            eps = np.random.randn(*((1, predictor_latent_mean.flatten().shape[0])))
+            eps = np.random.randn(*((1, prediction_latent_mean.flatten().shape[0])))
         else:
-            eps = np.random.randn(*((nsamps,) + predictor_latent_mean.shape))
-        if eps.T.shape == predictor_latent_mean.shape:
+            eps = np.random.randn(*((nsamps,) + prediction_latent_mean.shape))
+        if eps.T.shape == prediction_latent_mean.shape:
             eps = eps.T
         if add_noise:
-            predictor_norm = predictor_latent_mean + np.exp(prediction_log_var/2)*eps
+            predictor_norm = prediction_latent_mean + np.exp(prediction_log_var/2)*eps
         else:
-            predictor_norm = self.predictor_latent_mean + 0*np.exp(self.prediction_log_var/2)*eps
+            predictor_norm = self.prediction_latent_mean + 0*np.exp(self.prediction_log_var/2)*eps
 
         if nrm_samp: return predictor_norm
 
@@ -374,7 +379,7 @@ class VAEClassifier(object):
             eps = np.random.randn(*((nsamps,) + Z_mean.squeeze().shape))
         return Z_mean + np.exp(Z_log_var/2) * eps
 
-    def sample_vae(self, predictor_latent_mean):
-        rando = np.random.rand(len(predictor_latent_mean.squeeze()))
+    def sample_vae(self, prediction_latent_mean):
+        rando = np.random.rand(len(prediction_latent_mean.squeeze()))
 
-        return np.float32(rando <= predictor_latent_mean)
+        return np.float32(rando <= prediction_latent_mean)

@@ -19,7 +19,7 @@ from vaelstmpredictor.utils.model_utils import save_model_in_pieces
 from vaelstmpredictor.utils.model_utils import AnnealLossWeight
 from vaelstmpredictor.utils.data_utils import MNISTData
 from vaelstmpredictor.utils.weightnorm import data_based_init
-from vaelstmpredictor.vae_predictor.model import VAEClassifier
+from vaelstmpredictor.vae_predictor.model import VAEPredictor
 from vaelstmpredictor.vae_predictor.train import train_vae_predictor
 
 class BlankClass(object):
@@ -99,20 +99,19 @@ def mutate(child, prob):
             child.params_dict[param] += random.randint(-extra, extra)
     return child
 
-class Chromosome(VAEClassifier):
+class Chromosome(VAEPredictor):
     
     #[number of hidden layers in VAE,
     #   size of the first hidden layer in VAE,
     #   size of the latent layer,
     #   number of hidden layers in the DNN regressor,
     #   size of the first hidden layer in the DNN regressor]
-    params = ["size_vae_hidden", "size_vae_latent", 
-                "size_dnn_latent", "size_dnn_hidden"]
-
+    params = ["size_vae_hidden", "size_vae_latent", "size_dnn_hidden"]
+    # params_for_later = ["num_vae_hidden", "num_dnn_hidden" "size_dnn_latent"]
     #If any of the parameters is set to -1, a random number if chosen
     def __init__(self, clargs, data_instance, generationID, chromosomeID, 
                 size_vae_hidden = None, size_vae_latent = None, 
-                size_dnn_hidden = None, size_dnn_latent = None,
+                size_dnn_hidden = None, 
                 vae_kl_weight = 1.0, predictor_weight=1.0, 
                 predictor_kl_weight = 1.0, verbose = False):
         
@@ -142,17 +141,17 @@ class Chromosome(VAEClassifier):
                            "size_dnn_hidden": size_dnn_hidden,
                            "size_dnn_latent":size_dnn_latent}
 
-        self.network_type = clargs.network_type
+        self.predictor_type = clargs.predictor_type
         self.original_dim = clargs.original_dim
         self.predictor_weight = clargs.predictor_weight
         
         self.optimizer = clargs.optimizer
         self.batch_size = clargs.batch_size
         self.use_prev_input = False
-        self.class_dim = clargs.n_labels
+        self.predictor_out_dim = clargs.n_labels
 
-        self.clf_hidden_dim = 2**size_dnn_hidden
-        self.clf_latent_dim = 2**size_dnn_latent
+        self.predictor_hidden_dim = 2**size_dnn_hidden
+        self.predictor_latent_dim = self.predictor_out_dim-1# 2**size_dnn_latent
         self.vae_hidden_dim = 2**size_vae_hidden
         self.vae_latent_dim = 2**size_vae_latent
 
@@ -160,8 +159,10 @@ class Chromosome(VAEClassifier):
         self.neural_net = self.model
         self.fitness = 0
 
+        print(self.neural_net.summary())
+
     def train(self, verbose = False):
-        """Training control operations to create VAEClassifier instance, 
+        """Training control operations to create VAEPredictor instance, 
             organize the input data, and train the network.
         
         Args:
@@ -179,8 +180,8 @@ class Chromosome(VAEClassifier):
         
         DI = self.data_instance
 
-        clf_train = to_categorical(DI.train_labels, self.clargs.n_labels)
-        clf_validation = to_categorical(DI.valid_labels,self.clargs.n_labels)
+        predictor_train = to_categorical(DI.train_labels, self.clargs.n_labels)
+        predictor_validation = to_categorical(DI.valid_labels,self.clargs.n_labels)
 
         min_epoch = max(self.clargs.kl_anneal, self.clargs.w_kl_anneal)+1
         callbacks = get_callbacks(self.clargs, patience=self.clargs.patience, 
@@ -202,11 +203,11 @@ class Chromosome(VAEClassifier):
 
         data_based_init(self.model, DI.data_train[:clargs.batch_size])
 
-        vae_labels_val = [DI.labels_valid, clf_validation, 
-                            clf_validation,DI.labels_valid]
+        vae_labels_val = [DI.labels_valid, predictor_validation, 
+                            predictor_validation,DI.labels_valid]
 
         validation_data = (vae_features_val, vae_labels_val)
-        train_labels = [DI.labels_train, clf_train, clf_train, DI.labels_train]
+        train_labels = [DI.labels_train, predictor_train, predictor_train, DI.labels_train]
         
         history = self.model.fit(vae_train, train_labels,
                                     shuffle = True,
@@ -249,7 +250,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('run_name', type=str, default='ga_test_',
                 help='tag for current run')
-    parser.add_argument('--network_type', type=str, default="classification",
+    parser.add_argument('--predictor_type', type=str, default="classification",
                 help='select `classification` or `regression`')
     parser.add_argument('--batch_size', type=int, default=128,
                 help='batch size')
@@ -258,7 +259,7 @@ if __name__ == '__main__':
     parser.add_argument('--num_epochs', type=int, default=200,
                 help='number of epochs')
     parser.add_argument('--predictor_weight', type=float, default=1.0,
-                help='relative weight on classifying key')
+                help='relative weight on prediction loss')
     parser.add_argument('--prediction_log_var_prior', type=float, default=0.0,
                 help='w log var prior')
     parser.add_argument("--do_log", action="store_true", 

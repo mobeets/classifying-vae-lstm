@@ -12,10 +12,10 @@ from ..utils.model_utils import get_callbacks, save_model_in_pieces
 from ..utils.model_utils import init_adam_wn, AnnealLossWeight
 from ..utils.weightnorm import data_based_init
 
-from .model import VAEClassifier
+from .model import VAEPredictor
 
 def train_vae_predictor(clargs, data_instance, test_test = False):
-    """Training control operations to create VAEClassifier instance, 
+    """Training control operations to create VAEPredictor instance, 
         organize the input data, and train the network.
     
     Args:
@@ -91,14 +91,14 @@ def train_vae_predictor(clargs, data_instance, test_test = False):
     clargs.optimizer, was_adam_wn = init_adam_wn(clargs.optimizer)
 
     vae_dims = (clargs.vae_hidden_dim, clargs.vae_latent_dim)
-    predictor_dims = (clargs.prediction_hidden_dim, clargs.n_labels)
+    predictor_dims = (clargs.predictor_hidden_dim, clargs.n_labels)
 
-    vae_predictor = VAEClassifier(predictor_type = clargs.predictor_type,
+    vae_predictor = VAEPredictor(predictor_type = clargs.predictor_type,
                             batch_size = clargs.batch_size, 
                             original_dim = clargs.original_dim, 
                             vae_dims = vae_dims,
                             predictor_dims = predictor_dims, 
-                            prediction_latent_dim = clargs.prediction_latent_dim,
+                            predictor_latent_dim = clargs.predictor_latent_dim,
                             optimizer = clargs.optimizer,
                             predictor_weight = clargs.predictor_weight, 
                             vae_kl_weight = vae_kl_weight, 

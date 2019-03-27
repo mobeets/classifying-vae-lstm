@@ -13,7 +13,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('run_name', type=str, # default='run_',
                 help='tag for current run')
-    parser.add_argument('--network_type', type=str, default="classification",
+    parser.add_argument('--predictor_type', type=str, default="classification",
                 help='select `classification` or `regression`')
     parser.add_argument('--batch_size', type=int, default=128,
                 help='batch size')
@@ -33,10 +33,10 @@ if __name__ == '__main__':
                 help='relative weight on classifying key')
     parser.add_argument('--prediction_log_var_prior', type=float, default=0.0,
                 help='w log var prior')
-    parser.add_argument('--prediction_hidden_dim', type=int, default=128,
-                help='intermediate dims for class/regr prediction')
-    parser.add_argument('--prediction_latent_dim', type=int, default=0,
-                help='prediction dims for class/regr prediction')
+    parser.add_argument('--predictor_hidden_dim', type=int, default=128,
+                help='intermediate dims for class/regr predictor')
+    parser.add_argument('--predictor_latent_dim', type=int, default=0,
+                help='predictor dims for class/regr prediction')
     parser.add_argument("--do_log", action="store_true", 
                 help="save log files")
     parser.add_argument("--do_chckpt", action="store_true",
@@ -70,12 +70,12 @@ if __name__ == '__main__':
                 help="if debug; then stop before model.fit")
     args = parser.parse_args()
     
-    if 'class' in args.network_type.lower():
-        args.network_type = 'classification'
-    if 'regr' in args.network_type.lower():
-        args.network_type = 'regression'
+    if 'class' in args.predictor_type.lower():
+        args.predictor_type = 'classification'
+    if 'regr' in args.predictor_type.lower():
+        args.predictor_type = 'regression'
 
-    if args.network_type is 'regression': args.n_labels = 1
+    if args.predictor_type is 'regression': args.n_labels = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
     

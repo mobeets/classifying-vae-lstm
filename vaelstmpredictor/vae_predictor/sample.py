@@ -9,7 +9,7 @@ from ..utils.midi_utils import write_sample
 
 # from .model import load_model, generate_sample, make_decoder
 # from .model import make_w_encoder, make_z_encoder, sample_z
-from .model import VAEClassifier
+from .model import VAEPredictor
 """
 Code to load pianoroll data (.pickle)
 """
@@ -95,7 +95,7 @@ def make_sample(generate_sequence, vae_instance, data_instance, clargs):
     write_sample(sample, clargs.sample_dir, clargs.run_name, True)
 
 def sample(clargs, data_instance):
-    """Training control operations to create VAEClassifier instance, 
+    """Training control operations to create VAEPredictor instance, 
         organize the input data, and train the network.
     
     Args:
@@ -144,7 +144,7 @@ def sample(clargs, data_instance):
     vae_dims = (margs.intermediate_dim, margs.latent_dim)
     predictor_dims = (margs.intermediate_class_dim, margs.n_labels)
     
-    vae_clf = VAEClassifier(batch_size = margs.batch_size,
+    vae_clf = VAEPredictor(batch_size = margs.batch_size,
                             original_dim = margs.original_dim, 
                             vae_dims = vae_dims,
                             predictor_dims = predictor_dims, 
