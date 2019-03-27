@@ -1,3 +1,3 @@
-from . import vae_classifier
-from . import vaelstm_classifier
+from . import vae_predictor
+from . import vaelstm_predictor
 from . import utils

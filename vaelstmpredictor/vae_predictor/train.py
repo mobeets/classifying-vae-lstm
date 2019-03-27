@@ -93,12 +93,12 @@ def train_vae_predictor(clargs, data_instance, test_test = False):
     vae_dims = (clargs.vae_hidden_dim, clargs.vae_latent_dim)
     predictor_dims = (clargs.prediction_hidden_dim, clargs.n_labels)
 
-    vae_predictor = VAEClassifier(network_type = clargs.network_type,
+    vae_predictor = VAEClassifier(predictor_type = clargs.predictor_type,
                             batch_size = clargs.batch_size, 
                             original_dim = clargs.original_dim, 
                             vae_dims = vae_dims,
                             predictor_dims = predictor_dims, 
-                            prediction_latent_dim = prediction_latent_dim,
+                            prediction_latent_dim = clargs.prediction_latent_dim,
                             optimizer = clargs.optimizer,
                             predictor_weight = clargs.predictor_weight, 
                             vae_kl_weight = vae_kl_weight, 
