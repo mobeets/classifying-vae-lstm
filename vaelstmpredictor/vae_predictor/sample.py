@@ -81,7 +81,7 @@ def make_sample(generate_sequence, vae_instance, data_instance, clargs):
     data_seed = data_instance.data_test[seed_ind][0]
 
     # seed_key_ind = data_instance.test_song_keys[seed_ind] # 
-    seed_class_ind = data_instance.test_classes[seed_ind] # 
+    seed_class_ind = data_instance.test_labels[seed_ind] # 
     clf_val = None if clargs.infer_w else to_categorical(seed_class_ind, 
                                                      vae_instance.class_dim)
 
@@ -107,7 +107,7 @@ def sample(clargs, data_instance):
                 clargs.t
                 clargs.use_latent_prior
                 clargs.sample_dir
-                # clargs.n_classes
+                # clargs.n_labels
                 # clargs.predict_next
                 # clargs.use_prev_input
                 # clargs.run_name
@@ -123,10 +123,10 @@ def sample(clargs, data_instance):
         data_instance (object): object instance for organizing data structures
             Structure Contents: 
                 data_instance.data_test
-                data_instance.test_classes
-                # data_instance.train_classes
-                # data_instance.valid_classes
-                # data_instance.test_classes
+                data_instance.test_labels
+                # data_instance.train_labels
+                # data_instance.valid_labels
+                # data_instance.test_labels
                 # data_instance.labels_train
                 # data_instance.data_train
                 # data_instance.labels_valid
@@ -142,12 +142,12 @@ def sample(clargs, data_instance):
     margs = json_converter(**json_input)
 
     vae_dims = (margs.intermediate_dim, margs.latent_dim)
-    classifier_dims = (margs.intermediate_class_dim, margs.n_classes)
+    predictor_dims = (margs.intermediate_class_dim, margs.n_labels)
     
     vae_clf = VAEClassifier(batch_size = margs.batch_size,
                             original_dim = margs.original_dim, 
                             vae_dims = vae_dims,
-                            classifier_dims = classifier_dims, 
+                            predictor_dims = predictor_dims, 
                             optimizer = margs.optimizer.replace('-wn',''),
                             clf_weight = margs.clf_weight, 
                             use_prev_input = margs.use_prev_input)

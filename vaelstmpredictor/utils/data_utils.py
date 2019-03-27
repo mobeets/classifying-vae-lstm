@@ -2,6 +2,9 @@
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
+import os
+from sklearn.externals import joblib
+
 from numpy import array, arange, vstack, reshape, loadtxt, zeros
 
 try:
@@ -129,9 +132,9 @@ class PianoData:
         if 'train_key' in D:
             D = self.update_keys(D)
             self.key_map = self.make_keymap(D)
-            self.train_classes = self.song_keys(D['train_key'], self.train_song_inds)
-            self.test_classes = self.song_keys(D['test_key'], self.test_song_inds)
-            self.valid_classes = self.song_keys(D['valid_key'], self.valid_song_inds)
+            self.train_labels = self.song_keys(D['train_key'], self.train_song_inds)
+            self.test_labels = self.song_keys(D['test_key'], self.test_song_inds)
+            self.valid_labels = self.song_keys(D['valid_key'], self.valid_song_inds)
 
         if seq_length > 1:
             X = vstack([self.data_train, 
@@ -238,9 +241,9 @@ class MNISTData(object):
         x_test = x_test.astype('float32') / 255
 
         """These are all of the necessary `data_instance` components"""
-        self.train_classes = y_train
-        self.valid_classes = y_test
-        self.test_classes = arange(0) # irrelevant(?)
+        self.train_labels = y_train
+        self.valid_labels = y_test
+        self.test_labels = arange(0) # irrelevant(?)
 
         self.data_train = x_train
         self.data_valid = x_test
@@ -278,9 +281,9 @@ class ExoplanetData(object):
         x_train = x_train[:n_samples_train]
 
         # these are our "labels"; the regresser will be conditioning on these
-        self.train_classes = x_train
-        self.valid_classes = x_test
-        self.test_classes = arange(0) # irrelevant(?)
+        self.train_labels = x_train
+        self.valid_labels = x_test
+        self.test_labels = arange(0) # irrelevant(?)
 
         # these are our "features"; the VAE will be reproducing these
         self.data_train = y_train

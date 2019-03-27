@@ -7,8 +7,7 @@ from sklearn.externals import joblib
 from time import time
 from tqdm import tqdm
 
-from vaelstmclassifier.vae_classifier.train import train_vae_classifier
-# vae_classifier_train = train.train_vae_classifier # rename
+from vaelstmpredictor.vae_predictor.train import train_vae_predictor
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -76,12 +75,12 @@ if __name__ == '__main__':
     if 'regr' in args.network_type.lower():
         args.network_type = 'regression'
 
-    if args.network_type is 'regression': args.n_classes = 1
+    if args.network_type is 'regression': args.n_labels = 1
 
     data_types = ['piano', 'mnist', 'exoplanet']
     
     if 'piano' in args.data_type.lower():
-        from vaelstmclassifier.utils.data_utils import PianoData
+        from vaelstmpredictor.utils.data_utils import PianoData
 
         args.data_type = 'PianoData'
 
@@ -101,13 +100,13 @@ if __name__ == '__main__':
         data_instance = P
 
     elif 'mnist' in args.data_type.lower():
-        from vaelstmclassifier.utils.data_utils import MNISTData
+        from vaelstmpredictor.utils.data_utils import MNISTData
 
         args.data_type = 'MNIST'
         data_instance = MNISTData(batch_size = args.batch_size)
 
     elif 'exoplanet' in args.data_type.lower():
-        from vaelstmclassifier.utils.data_utils import ExoplanetData
+        from vaelstmpredictor.utils.data_utils import ExoplanetData
 
         args.data_type = 'ExoplanetSpectra'
         data_instance = ExoplanetData(train_file = args.train_file,
@@ -125,7 +124,7 @@ if __name__ == '__main__':
 
     print('\n\n[INFO] Run Base Name: {}\n'.format(args.run_name))
 
-    vae_model, best_loss, history = train_vae_classifier(clargs = args, 
+    vae_model, best_loss, history = train_vae_predictor(clargs = args, 
                                                 data_instance = data_instance)
 
     print('\n\n[INFO] The Best Loss: {}\n'.format(best_loss))

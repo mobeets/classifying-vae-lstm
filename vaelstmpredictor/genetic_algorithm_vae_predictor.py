@@ -1,4 +1,4 @@
-# from https://github.com/philippesaade11/vaelstmclassifier/blob/GeneticAlgorithm/Genetic-Algorithm.py
+# from https://github.com/philippesaade11/vaelstmpredictor/blob/GeneticAlgorithm/Genetic-Algorithm.py
 import argparse
 import matplotlib.pyplot as plt
 import numpy as np
@@ -14,19 +14,20 @@ from sklearn.externals import joblib
 from time import time
 from tqdm import tqdm
 
-from vaelstmclassifier.utils.model_utils import get_callbacks, init_adam_wn
-from vaelstmclassifier.utils.model_utils import save_model_in_pieces
-from vaelstmclassifier.utils.model_utils import AnnealLossWeight
-from vaelstmclassifier.utils.data_utils import MNISTData
-from vaelstmclassifier.utils.weightnorm import data_based_init
-from vaelstmclassifier.vae_classifier.model import VAEClassifier
-from vaelstmclassifier.vae_classifier.train import train_vae_classifier
+from vaelstmpredictor.utils.model_utils import get_callbacks, init_adam_wn
+from vaelstmpredictor.utils.model_utils import save_model_in_pieces
+from vaelstmpredictor.utils.model_utils import AnnealLossWeight
+from vaelstmpredictor.utils.data_utils import MNISTData
+from vaelstmpredictor.utils.weightnorm import data_based_init
+from vaelstmpredictor.vae_predictor.model import VAEClassifier
+from vaelstmpredictor.vae_predictor.train import train_vae_predictor
 
 class BlankClass(object):
     def __init__(self):
         pass
 
 def generate_random_chromosomes(size, clargs, data_instance):
+    print('DOING GEN RAND CHROMO')
     generationID = 0
     nets = []
     for chromosomeID in range(size):
@@ -57,6 +58,7 @@ def select_parents(generation):
     return parent1, parent2
 
 def cross_over(parent1, parent2, prob):
+    print('DOING CROSSOVER')
     if(random.random() <= prob):
         params1 = {}
         params2 = {}
@@ -90,6 +92,7 @@ def cross_over(parent1, parent2, prob):
     return parent1, parent2
 
 def mutate(child, prob):
+    print('DOING CROSSOVER')
     for param in Chromosome.params:
         if(random.random() <= prob):
             extra = int(child.params_dict[param]*0.1)+1
@@ -146,7 +149,7 @@ class Chromosome(VAEClassifier):
         self.optimizer = clargs.optimizer
         self.batch_size = clargs.batch_size
         self.use_prev_input = False
-        self.class_dim = clargs.n_classes
+        self.class_dim = clargs.n_labels
 
         self.clf_hidden_dim = 2**size_dnn_hidden
         self.clf_latent_dim = 2**size_dnn_latent
@@ -156,7 +159,6 @@ class Chromosome(VAEClassifier):
         self.get_model()
         self.neural_net = self.model
         self.fitness = 0
-        print('self.class_dim',self.class_dim)
 
     def train(self, verbose = False):
         """Training control operations to create VAEClassifier instance, 
@@ -164,22 +166,21 @@ class Chromosome(VAEClassifier):
         
         Args:
             clargs (object): command line arguments from `argparse`
-                Structure Contents: n_classes,
+                Structure Contents: n_labels,
                     run_name, patience, kl_anneal, do_log, do_chkpt, num_epochs
                     w_kl_anneal, optimizer, batch_size
             
             data_instance (object): 
                 Object instance for organizing data structures
-                Structure Contents: train_classes, valid_classes, test_classes
+                Structure Contents: train_labels, valid_labels, test_labels
                     labels_train, data_train, labels_valid, data_valid
         """
         verbose = verbose or self.verbose
         
         DI = self.data_instance
-        clargs = self.clargs
 
-        clf_train = to_categorical(DI.train_classes, self.clargs.n_classes)
-        clf_validation = to_categorical(DI.valid_classes,self.clargs.n_classes)
+        clf_train = to_categorical(DI.train_labels, self.clargs.n_labels)
+        clf_validation = to_categorical(DI.valid_labels,self.clargs.n_labels)
 
         min_epoch = max(self.clargs.kl_anneal, self.clargs.w_kl_anneal)+1
         callbacks = get_callbacks(self.clargs, patience=self.clargs.patience, 
@@ -191,8 +192,8 @@ class Chromosome(VAEClassifier):
         if clargs.w_kl_anneal > 0: 
             self.predictor_kl_weight = K.variable(value=0.0)
         
-        clargs.optimizer, was_adam_wn = init_adam_wn(clargs.optimizer)
-        clargs.optimizer = 'adam' if was_adam_wn else clargs.optimizer
+        # self.clargs.optimizer, was_adam_wn = init_adam_wn(self.clargs.optimizer)
+        # self.clargs.optimizer = 'adam' if was_adam_wn else self.clargs.optimizer
         
         save_model_in_pieces(self.model, self.clargs)
         
@@ -206,7 +207,7 @@ class Chromosome(VAEClassifier):
 
         validation_data = (vae_features_val, vae_labels_val)
         train_labels = [DI.labels_train, clf_train, clf_train, DI.labels_train]
-
+        
         history = self.model.fit(vae_train, train_labels,
                                     shuffle = True,
                                     epochs = clargs.num_epochs,
@@ -297,7 +298,7 @@ if __name__ == '__main__':
 
     if verbose: print('\n\n[INFO] Run Base Name: {}\n'.format(clargs.run_name))
     
-    clargs.n_classes = len(np.unique(data_instance.train_classes))
+    clargs.n_labels = len(np.unique(data_instance.train_labels))
 
     cross_prob = 0.7
     mutate_prob = 0.01

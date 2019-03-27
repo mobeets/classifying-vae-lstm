@@ -14,14 +14,14 @@ from ..utils.weightnorm import data_based_init
 
 from .model import VAEClassifier
 
-def train_vae_classifier(clargs, data_instance, test_test = False):
+def train_vae_predictor(clargs, data_instance, test_test = False):
     """Training control operations to create VAEClassifier instance, 
         organize the input data, and train the network.
     
     Args:
         clargs (object): command line arguments from `argparse`
             Structure Contents: 
-                clargs.n_classes
+                clargs.n_labels
                 clargs.predict_next
                 clargs.use_prev_input
                 clargs.run_name
@@ -36,18 +36,18 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
         
         data_instance (object): object instance for organizing data structures
             Structure Contents: 
-                DI.train_classes
-                DI.valid_classes
-                DI.test_classes
+                DI.train_labels
+                DI.valid_labels
+                DI.test_labels
                 DI.labels_train
                 DI.data_train
                 DI.labels_valid
                 DI.data_valid
 
-        test_test (optional; bool): flag for storing classifier test parameters
+        test_test (optional; bool): flag for storing predictor test parameters
     
     Returns:
-        vae_clf (object): Variational AutoEncoder class instance
+        vae_predictor (object): Variational AutoEncoder class instance
             Structure content: all data, all layers, training output, methods
 
         best_loss (dict): the best validation loss achieved during training
@@ -59,11 +59,11 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
     """
     DI = data_instance
 
-    clargs.n_classes = len(np.unique(DI.train_classes))
-    clf_train = to_categorical(DI.train_classes, clargs.n_classes)
-    clf_validation = to_categorical(DI.valid_classes, clargs.n_classes)
+    clargs.n_labels = len(np.unique(DI.train_labels))
+    predictor_train = to_categorical(DI.train_labels, clargs.n_labels)
+    predictor_validation = to_categorical(DI.valid_labels, clargs.n_labels)
 
-    if test_test: clf_test = to_categorical(DI.test_classes, clargs.n_classes)
+    if test_test: predictor_test = to_categorical(DI.test_labels, clargs.n_labels)
 
     assert(not (clargs.predict_next and clargs.use_prev_input)), \
             "Can't use --predict_next if using --use_prev_input"
@@ -82,33 +82,34 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
         vae_kl_weight = 1.0
     if clargs.w_kl_anneal > 0:
         assert(clargs.w_kl_anneal <= clargs.num_epochs), "invalid w_kl_anneal"
-        clf_kl_weight = K.variable(value=0.0)
-        callbacks += [AnnealLossWeight(clf_kl_weight, name="clf_kl_weight", 
+        predictor_kl_weight = K.variable(value=0.0)
+        callbacks += [AnnealLossWeight(predictor_kl_weight, name="predictor_kl_weight", 
                                 final_value=1.0, n_epochs=clargs.w_kl_anneal)]
     else:
-        clf_kl_weight = 1.0
+        predictor_kl_weight = 1.0
 
     clargs.optimizer, was_adam_wn = init_adam_wn(clargs.optimizer)
 
     vae_dims = (clargs.vae_hidden_dim, clargs.vae_latent_dim)
-    classifier_dims = (clargs.prediction_hidden_dim, clargs.n_classes)
+    predictor_dims = (clargs.prediction_hidden_dim, clargs.n_labels)
 
-    vae_clf = VAEClassifier(network_type = clargs.network_type,
+    vae_predictor = VAEClassifier(network_type = clargs.network_type,
                             batch_size = clargs.batch_size, 
                             original_dim = clargs.original_dim, 
                             vae_dims = vae_dims,
-                            classifier_dims = classifier_dims, 
+                            predictor_dims = predictor_dims, 
+                            prediction_latent_dim = prediction_latent_dim,
                             optimizer = clargs.optimizer,
-                            clf_weight = clargs.predictor_weight, 
+                            predictor_weight = clargs.predictor_weight, 
                             vae_kl_weight = vae_kl_weight, 
                             use_prev_input = clargs.use_prev_input,
-                            clf_kl_weight = clf_kl_weight)
+                            predictor_kl_weight = predictor_kl_weight)
     
-    vae_clf.get_model()
+    vae_predictor.get_model()
     
     clargs.optimizer = 'adam-wn' if was_adam_wn else clargs.optimizer
     
-    save_model_in_pieces(vae_clf.model, clargs)
+    save_model_in_pieces(vae_predictor.model, clargs)
     
     if clargs.use_prev_input:
         vae_train = [DI.labels_train, DI.data_train]
@@ -117,16 +118,18 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
         vae_train = DI.data_train
         vae_features_val = DI.data_valid
 
-    data_based_init(vae_clf.model, DI.data_train[:clargs.batch_size])
+    data_based_init(vae_predictor.model, DI.data_train[:clargs.batch_size])
 
-    vae_labels_val = [DI.labels_valid, clf_validation, 
-                        clf_validation,DI.labels_valid]
+    vae_labels_val = [DI.labels_valid, predictor_validation, 
+                        predictor_validation,DI.labels_valid]
     validation_data = (vae_features_val, vae_labels_val)
-    train_labels = [DI.labels_train, clf_train, clf_train, DI.labels_train]
+    train_labels = [DI.labels_train, predictor_train, predictor_train, DI.labels_train]
     
     if clargs.debug: return 0,0,0
+    
+    vae_predictor.model.summary()
 
-    history = vae_clf.model.fit(vae_train, train_labels,
+    history = vae_predictor.model.fit(vae_train, train_labels,
                                 shuffle = True,
                                 epochs = clargs.num_epochs,
                                 batch_size = clargs.batch_size,
@@ -138,4 +141,4 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
     
     best_loss = {k: history.history[k][best_ind] for k in history.history}
     
-    return vae_clf, best_loss, history
+    return vae_predictor, best_loss, history
