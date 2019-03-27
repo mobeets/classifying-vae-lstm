@@ -3,11 +3,13 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
-setup(name='vaelstmclassifier',
+setup(name='vaelstmpredictor',
       version=0.1,
-      description='Combined Classifying, Variational Autoencoder, and Long Short Term Memory Recurrent Neural Network for Autocorrelated Data',
+      description='Combined Classifying, Regressing, Variational Autoencoder, \
+                  and Long Short Term Memory Recurrent Neural Network for \
+                  Autocorrelated Data',
       long_description=open('README.md').read(),
-      url='https://github.com/exowanderer/vaelstmclassifier',
+      url='https://github.com/exowanderer/vaelstmpredictor',
       license='GPL3',
       author="(Algorithm + Original Code) Jay A. Hennig, Akash Umakantha, "\
             "Ryan C. Williamson, and (Updated Code) "\
