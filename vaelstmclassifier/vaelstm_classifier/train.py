@@ -6,7 +6,7 @@ import numpy as np
 from keras import backend as K
 from keras.utils import to_categorical
 
-from ..utils.pianoroll import PianoData
+from ..utils.data_utils import PianoData
 from ..utils.model_utils import get_callbacks, save_model_in_pieces
 from ..utils.model_utils import AnnealLossWeight, init_adam_wn
 from ..utils.weightnorm import data_based_init

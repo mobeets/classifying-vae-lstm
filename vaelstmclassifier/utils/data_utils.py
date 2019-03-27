@@ -2,6 +2,7 @@
 Code to load pianoroll data (.pickle)
 """
 import numpy as np
+from numpy import array, arange, vstack, reshape, loadtxt, zeros
 
 try:
     # Python 3

@@ -46,7 +46,7 @@ if __name__ == '__main__':
                 help="use state_now to 'autoencode' state_next")
     parser.add_argument("--use_prev_input", action="store_true",
                 help="use state_prev to help latent_now decode state_now")
-    parser.add_argument('--patience', type=int, default=5,
+    parser.add_argument('--patience', type=int, default=10,
                 help='# of epochs, for early stopping')
     parser.add_argument("--kl_anneal", type=int, default=0, 
                 help="number of epochs before kl loss term is 1.0")
@@ -143,8 +143,4 @@ if __name__ == '__main__':
     vae_model.model.save_weights(weights_save_loc, overwrite=True)
     vae_model.model.save(model_save_loc, overwrite=True)
     
-    # """ Must set to None to blank out the model """
-    # vae_model.model = None
-    # vae_model.enc_model = None
-
     joblib.dump({'best_loss':best_loss,'history':history}, joblib_save_loc)

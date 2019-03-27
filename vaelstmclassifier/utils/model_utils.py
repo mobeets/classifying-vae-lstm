@@ -159,15 +159,29 @@ def get_callbacks(args, patience = 10, min_epoch = 0,
                                             save_best_only = True))
     
     if do_log:
-        log_dir = os.path.join(args.log_dir,args.run_name)
-        callbacks.append(TensorBoard(log_dir = log_dir))
+        log_dir = os.path.join(args.log_dir, args.run_name)
+        callbacks += [TensorBoard(log_dir = log_dir)]
     
     if patience > 0:
-        callbacks.append(EarlyStoppingAfterEpoch(monitor = 'val_loss',
-                                                 min_epoch = min_epoch, 
-                                                 patience = patience, 
-                                                 verbose = 0))
+        callbacks += [EarlyStoppingAfterEpoch(monitor = 'val_loss',
+                                             min_epoch = min_epoch, 
+                                             patience = patience, 
+                                             verbose = 0)]
     
+    if args.kl_anneal > 0:
+        assert(args.kl_anneal <= args.num_epochs), "invalid kl_anneal"
+        vae_kl_weight = K.variable(value=0.1)
+        callbacks += [AnnealLossWeight(vae_kl_weight, name="vae_kl_weight", 
+                                final_value=1.0, n_epochs=args.kl_anneal)]
+
+    if args.w_kl_anneal > 0:
+        assert(args.w_kl_anneal <= args.num_epochs), "invalid w_kl_anneal"
+        predictor_kl_weight = K.variable(value=0.0)
+        callbacks += [AnnealLossWeight(predictor_kl_weight, 
+                                        name = "predictor_kl_weight", 
+                                        final_value = 1.0, 
+                                        n_epochs = args.w_kl_anneal)]
+
     return callbacks
 
 def save_model_in_pieces(model, args):
@@ -175,6 +189,7 @@ def save_model_in_pieces(model, args):
     outfile = os.path.join(args.model_dir, args.run_name + '.yaml')
     with open(outfile, 'w') as f:
         f.write(model.to_yaml())
+    
     # save model args
     outfile = os.path.join(args.model_dir, args.run_name + '.json')
     json.dump(vars(args), open(outfile, 'w'))

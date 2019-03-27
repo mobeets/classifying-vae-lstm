@@ -35,13 +35,13 @@ class VAEClassifier(object):
                     vae_kl_weight = 1.0, clf_weight=1.0, 
                     clf_kl_weight = 1.0, optimizer = 'adam-wn', 
                     use_prev_input = False, network_type = 'classification'):
-        
+
         self.network_type = network_type
         self.original_dim = original_dim
         self.vae_hidden_dim, self.vae_latent_dim = vae_dims
         self.clf_hidden_dim, self.class_dim = classifier_dims
         self.clf_latent_dim = clf_latent_dim or self.class_dim - 1
-        
+
         self.optimizer = optimizer
         self.batch_size = batch_size
         self.use_prev_input = use_prev_input
@@ -168,8 +168,6 @@ class VAEClassifier(object):
 
         self.build_classifier()
         
-        print('self.input_layer',self.input_layer)
-        print('self.clf_pred',self.clf_pred)
         self.input_w_pred = concatenate([self.input_layer, self.clf_pred], 
                                             axis = -1,
                                             name = 'input_layer_w_clf_pred')

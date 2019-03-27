@@ -33,7 +33,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
                 clargs.w_kl_anneal
                 clargs.optimizer
                 clargs.batch_size
-
+        
         data_instance (object): object instance for organizing data structures
             Structure Contents: 
                 DI.train_classes
@@ -92,7 +92,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
 
     vae_dims = (clargs.vae_hidden_dim, clargs.vae_latent_dim)
     classifier_dims = (clargs.prediction_hidden_dim, clargs.n_classes)
-    
+
     vae_clf = VAEClassifier(network_type = clargs.network_type,
                             batch_size = clargs.batch_size, 
                             original_dim = clargs.original_dim, 
@@ -125,7 +125,7 @@ def train_vae_classifier(clargs, data_instance, test_test = False):
     train_labels = [DI.labels_train, clf_train, clf_train, DI.labels_train]
     
     if clargs.debug: return 0,0,0
-    
+
     history = vae_clf.model.fit(vae_train, train_labels,
                                 shuffle = True,
                                 epochs = clargs.num_epochs,

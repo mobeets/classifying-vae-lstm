@@ -145,7 +145,6 @@ class AdamWithWeightnorm(Adam):
                 self.updates.append(K.update(p, new_p))
         return self.updates
 
-
 def get_weightnorm_params_and_grads(p, g):
     ps = K.get_variable_shape(p)
 
@@ -168,7 +167,6 @@ def get_weightnorm_params_and_grads(p, g):
 
     return V, V_norm, V_scaler, g_param, grad_g, grad_V
 
-
 def add_weightnorm_param_updates(updates, new_V_param, new_g_param, W, V_scaler):
     ps = K.get_variable_shape(new_V_param)
     norm_axes = [i for i in range(len(ps) - 1)]
@@ -180,10 +178,8 @@ def add_weightnorm_param_updates(updates, new_V_param, new_g_param, W, V_scaler)
     updates.append(K.update(W, new_W))
     updates.append(K.update(V_scaler, new_V_scaler))
 
-
 # data based initialization for a given Keras model
 def data_based_init(model, input):
-
     # input can be dict, numpy array, or list of numpy arrays
     if type(input) is dict:
         feed_dict = input
@@ -201,7 +197,9 @@ def data_based_init(model, input):
     for l in model.layers:
         if hasattr(l, 'W') and hasattr(l, 'b'):
             assert(l.built)
-            layer_output_weight_bias.append( (l.name,l.get_output_at(0),l.W,l.b) ) # if more than one node, only use the first
+            # if more than one node, only use the first
+            new_tuple = (l.name, l.get_output_at(0), l.W, l.b)
+            layer_output_weight_bias.append(new_tuple)
 
     # iterate over our list and do data dependent init
     sess = K.get_session()
@@ -209,5 +207,8 @@ def data_based_init(model, input):
         print('Performing data dependent initialization for layer ' + l)
         m,v = tf.nn.moments(o, [i for i in range(len(o.get_shape())-1)])
         s = tf.sqrt(v + 1e-10)
-        updates = tf.group(W.assign(W/tf.reshape(s,[1]*(len(W.get_shape())-1)+[-1])), b.assign((b-m)/s))
+        
+        W_assign = W.assign(W/tf.reshape(s,[1]*(len(W.get_shape())-1)+[-1]))
+        updates = tf.group(W_assign, b.assign((b-m)/s))
+
         sess.run(updates, feed_dict)
